@@ -3,12 +3,11 @@
 
 using System;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Dithering;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Dithering;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Binarization
 {
     /// <summary>
     /// Performs binary threshold filtering against an image using ordered dithering.
@@ -34,9 +33,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <param name="lowerColor">The color to use for pixels that are below the threshold.</param>
         public BinaryOrderedDitherProcessor(IOrderedDither dither, TPixel upperColor, TPixel lowerColor)
         {
-            Guard.NotNull(dither, nameof(dither));
-
-            this.Dither = dither;
+            this.Dither = dither ?? throw new ArgumentNullException(nameof(dither));
             this.UpperColor = upperColor;
             this.LowerColor = lowerColor;
         }
@@ -57,9 +54,9 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public TPixel LowerColor { get; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
-            var rgba = default(Rgba32);
+            Rgba32 rgba = default;
             bool isAlphaOnly = typeof(TPixel) == typeof(Alpha8);
 
             var interest = Rectangle.Intersect(sourceRectangle, source.Bounds());

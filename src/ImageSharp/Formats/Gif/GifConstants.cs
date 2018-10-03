@@ -22,6 +22,11 @@ namespace SixLabors.ImageSharp.Formats.Gif
         public const string FileVersion = "89a";
 
         /// <summary>
+        /// The ASCII encoded bytes used to identify the GIF file.
+        /// </summary>
+        internal static readonly byte[] MagicNumber = Encoding.UTF8.GetBytes(FileType + FileVersion);
+
+        /// <summary>
         /// The extension block introducer <value>!</value>.
         /// </summary>
         public const byte ExtensionIntroducer = 0x21;
@@ -37,14 +42,24 @@ namespace SixLabors.ImageSharp.Formats.Gif
         public const byte ApplicationExtensionLabel = 0xFF;
 
         /// <summary>
-        /// The application identification.
-        /// </summary>
-        public const string ApplicationIdentification = "NETSCAPE2.0";
-
-        /// <summary>
         /// The application block size.
         /// </summary>
-        public const byte ApplicationBlockSize = 0x0b;
+        public const byte ApplicationBlockSize = 11;
+
+        /// <summary>
+        /// The application identification.
+        /// </summary>
+        public const string NetscapeApplicationIdentification = "NETSCAPE2.0";
+
+        /// <summary>
+        /// The ASCII encoded application identification bytes.
+        /// </summary>
+        internal static readonly byte[] NetscapeApplicationIdentificationBytes = Encoding.UTF8.GetBytes(NetscapeApplicationIdentification);
+
+        /// <summary>
+        /// The Netscape looping application sub block size.
+        /// </summary>
+        public const byte NetscapeLoopingSubBlockSize = 3;
 
         /// <summary>
         /// The comment label.

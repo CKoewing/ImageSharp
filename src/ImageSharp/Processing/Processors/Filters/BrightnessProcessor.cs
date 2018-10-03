@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a brightness filter matrix using the given amount.
@@ -16,12 +16,12 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// Initializes a new instance of the <see cref="BrightnessProcessor{TPixel}"/> class.
         /// </summary>
         /// <remarks>
-        /// A value of 0 will create an image that is completely black. A value of 1 leaves the input unchanged.
+        /// A value of <value>0</value> will create an image that is completely black. A value of <value>1</value> leaves the input unchanged.
         /// Other values are linear multipliers on the effect. Values of an amount over 1 are allowed, providing brighter results.
         /// </remarks>
         /// <param name="amount">The proportion of the conversion. Must be greater than or equal to 0.</param>
         public BrightnessProcessor(float amount)
-            : base(MatrixFilters.CreateBrightnessFilter(amount))
+            : base(KnownFilterMatrices.CreateBrightnessFilter(amount))
         {
             this.Amount = amount;
         }

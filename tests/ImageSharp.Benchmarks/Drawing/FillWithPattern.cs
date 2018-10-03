@@ -3,18 +3,19 @@
 // Licensed under the Apache License, Version 2.0.
 // </copyright>
 
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
+
+using BenchmarkDotNet.Attributes;
+
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+
+using CoreBrushes = SixLabors.ImageSharp.Processing.Brushes;
+
 namespace SixLabors.ImageSharp.Benchmarks
 {
-    using System.Drawing;
-    using System.Drawing.Drawing2D;
-    using System.IO;
-
-    using BenchmarkDotNet.Attributes;
-
-    using SixLabors.ImageSharp.Drawing.Brushes;
-    using CoreBrushes = ImageSharp.Drawing.Brushes.Brushes;
-    using SixLabors.ImageSharp.PixelFormats;
-
     public class FillWithPattern
     {
         [Benchmark(Baseline = true, Description = "System.Drawing Fill with Pattern")]
@@ -25,8 +26,8 @@ namespace SixLabors.ImageSharp.Benchmarks
                 using (Graphics graphics = Graphics.FromImage(destination))
                 {
                     graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    HatchBrush brush = new HatchBrush(HatchStyle.BackwardDiagonal, System.Drawing.Color.HotPink);
-                    graphics.FillRectangle(brush, new Rectangle(0,0, 800,800)); // can't find a way to flood fill with a brush
+                    HatchBrush brush = new HatchBrush(HatchStyle.BackwardDiagonal, Color.HotPink);
+                    graphics.FillRectangle(brush, new Rectangle(0, 0, 800, 800)); // can't find a way to flood fill with a brush
                 }
                 using (MemoryStream ms = new MemoryStream())
                 {

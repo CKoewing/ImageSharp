@@ -9,10 +9,10 @@ using SixLabors.ImageSharp.Common;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Effects
 {
     /// <summary>
-    /// An <see cref="IImageProcessor{TPixel}"/> to pixelate the colors of an <see cref="Image{TPixel}"/>.
+    /// Applies a pixelation effect processing to the image.
     /// </summary>
     /// <typeparam name="TPixel">The pixel format.</typeparam>
     internal class PixelateProcessor<TPixel> : ImageProcessor<TPixel>
@@ -37,7 +37,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public int Size { get; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
             if (this.Size <= 0 || this.Size > source.Height || this.Size > source.Width)
             {
@@ -73,7 +73,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
 
             Parallel.ForEach(
                 range,
-                configuration.ParallelOptions,
+                configuration.GetParallelOptions(),
                 y =>
                     {
                         int offsetY = y - startY;

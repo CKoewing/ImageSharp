@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a sepia filter matrix using the given amount.
@@ -17,7 +17,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// </summary>
         /// <param name="amount">The proportion of the conversion. Must be between 0 and 1.</param>
         public SepiaProcessor(float amount)
-            : base(MatrixFilters.CreateSepiaFilter(amount))
+            : base(KnownFilterMatrices.CreateSepiaFilter(amount))
         {
             this.Amount = amount;
         }

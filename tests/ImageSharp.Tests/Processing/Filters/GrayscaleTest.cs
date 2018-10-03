@@ -1,13 +1,14 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Collections;
 using System.Collections.Generic;
+
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Filters;
 using SixLabors.ImageSharp.Processing.Processors;
 using SixLabors.ImageSharp.Tests.TestUtilities;
-using SixLabors.Primitives;
+
 using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Filters
@@ -25,7 +26,6 @@ namespace SixLabors.ImageSharp.Tests.Processing.Filters
         {
             this.operations.Grayscale(mode);
             var p = this.Verify<T>();
-
         }
 
         [Theory]

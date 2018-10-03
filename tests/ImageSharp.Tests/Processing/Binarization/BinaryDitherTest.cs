@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using SixLabors.ImageSharp.Dithering;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing.Processors;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Binarization;
+using SixLabors.ImageSharp.Processing.Processors.Dithering;
+
 using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Binarization

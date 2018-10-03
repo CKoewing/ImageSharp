@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies an opacity filter matrix using the given amount.
@@ -17,7 +17,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// </summary>
         /// <param name="amount">The proportion of the conversion. Must be between 0 and 1.</param>
         public OpacityProcessor(float amount)
-            : base(MatrixFilters.CreateOpacityFilter(amount))
+            : base(KnownFilterMatrices.CreateOpacityFilter(amount))
         {
             this.Amount = amount;
         }

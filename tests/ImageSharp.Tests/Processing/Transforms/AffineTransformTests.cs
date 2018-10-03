@@ -1,19 +1,23 @@
 ﻿using System;
 using System.Numerics;
 using System.Reflection;
+using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison;
 using SixLabors.Primitives;
+
 using Xunit;
 using Xunit.Abstractions;
-using SixLabors.ImageSharp.Helpers;
-// ReSharper disable InconsistentNaming
 
 namespace SixLabors.ImageSharp.Tests.Processing.Transforms
 {
     public class AffineTransformTests
     {
         private readonly ITestOutputHelper Output;
+
+        private static readonly ImageComparer ValidatorComparer = ImageComparer.TolerantPercentage(0.0085f, 3);
 
         /// <summary>
         /// angleDeg, sx, sy, tx, ty
@@ -33,25 +37,24 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
                       { 0, 1f, 2f, 0, 0 },
                   };
 
-        public static readonly TheoryData<string> ResamplerNames =
-            new TheoryData<string>
-                  {
-                      nameof(KnownResamplers.Bicubic),
-                      nameof(KnownResamplers.Box),
-                      nameof(KnownResamplers.CatmullRom),
-                      nameof(KnownResamplers.Hermite),
-                      nameof(KnownResamplers.Lanczos2),
-                      nameof(KnownResamplers.Lanczos3),
-                      nameof(KnownResamplers.Lanczos5),
-                      nameof(KnownResamplers.Lanczos8),
-                      nameof(KnownResamplers.MitchellNetravali),
-                      nameof(KnownResamplers.NearestNeighbor),
-                      nameof(KnownResamplers.Robidoux),
-                      nameof(KnownResamplers.RobidouxSharp),
-                      nameof(KnownResamplers.Spline),
-                      nameof(KnownResamplers.Triangle),
-                      nameof(KnownResamplers.Welch),
-                  };
+        public static readonly TheoryData<string> ResamplerNames = new TheoryData<string>
+        {
+            nameof(KnownResamplers.Bicubic),
+            nameof(KnownResamplers.Box),
+            nameof(KnownResamplers.CatmullRom),
+            nameof(KnownResamplers.Hermite),
+            nameof(KnownResamplers.Lanczos2),
+            nameof(KnownResamplers.Lanczos3),
+            nameof(KnownResamplers.Lanczos5),
+            nameof(KnownResamplers.Lanczos8),
+            nameof(KnownResamplers.MitchellNetravali),
+            nameof(KnownResamplers.NearestNeighbor),
+            nameof(KnownResamplers.Robidoux),
+            nameof(KnownResamplers.RobidouxSharp),
+            nameof(KnownResamplers.Spline),
+            nameof(KnownResamplers.Triangle),
+            nameof(KnownResamplers.Welch),
+        };
 
         public static readonly TheoryData<string> Transform_DoesNotCreateEdgeArtifacts_ResamplerNames =
             new TheoryData<string>
@@ -113,12 +116,12 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
 
                 image.Mutate(i => i.Transform(m, KnownResamplers.Bicubic));
 
-                string testOutputDetails = $"R({angleDeg})_S({sx},{sy})_T({tx},{ty})";
+                FormattableString testOutputDetails = $"R({angleDeg})_S({sx},{sy})_T({tx},{ty})";
                 image.DebugSave(provider, testOutputDetails);
-                image.CompareToReferenceOutput(provider, testOutputDetails);
+                image.CompareToReferenceOutput(ValidatorComparer, provider, testOutputDetails);
             }
         }
-        
+
         [Theory]
         [WithTestPatternImages(96, 96, PixelTypes.Rgba32, 50, 0.8f)]
         public void Transform_RotateScale_ManuallyCentered<TPixel>(TestImageProvider<TPixel> provider, float angleDeg, float s)
@@ -130,9 +133,9 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
 
                 image.Mutate(i => i.Transform(m, KnownResamplers.Bicubic));
 
-                string testOutputDetails = $"R({angleDeg})_S({s})";
+                FormattableString testOutputDetails = $"R({angleDeg})_S({s})";
                 image.DebugSave(provider, testOutputDetails);
-                image.CompareToReferenceOutput(provider, testOutputDetails);
+                image.CompareToReferenceOutput(ValidatorComparer, provider, testOutputDetails);
             }
         }
 
@@ -160,11 +163,11 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
             using (Image<TPixel> image = provider.GetImage())
             {
                 var m = Matrix3x2.CreateScale(2.0F, 1.5F);
-                
+
                 image.Mutate(i => i.Transform(m, KnownResamplers.Spline, rectangle));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -182,7 +185,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
                 image.Mutate(i => i.Transform(m, KnownResamplers.Spline, rectangle));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -202,7 +205,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
                     });
 
                 image.DebugSave(provider, resamplerName);
-                image.CompareToReferenceOutput(provider, resamplerName);
+                image.CompareToReferenceOutput(ValidatorComparer, provider, resamplerName);
             }
         }
 
@@ -225,9 +228,9 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
         {
             PropertyInfo property = typeof(KnownResamplers).GetTypeInfo().GetProperty(name);
 
-            if (property == null)
+            if (property is null)
             {
-                throw new Exception("Invalid property name!");
+                throw new Exception($"No resampler named {name}");
             }
 
             return (IResampler)property.GetValue(null);
@@ -236,8 +239,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Transforms
         private static void VerifyAllPixelsAreWhiteOrTransparent<TPixel>(Image<TPixel> image)
             where TPixel : struct, IPixel<TPixel>
         {
-            TPixel[] data = new TPixel[image.Width * image.Height];
-            image.Frames.RootFrame.SavePixelData(data);
+            Span<TPixel> data = image.Frames.RootFrame.GetPixelSpan();
             var rgba = default(Rgba32);
             var white = new Rgb24(255, 255, 255);
             foreach (TPixel pixel in data)

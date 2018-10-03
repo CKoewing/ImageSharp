@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a hue filter matrix using the given angle of rotation in degrees
@@ -16,7 +16,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// </summary>
         /// <param name="degrees">The angle of rotation in degrees</param>
         public HueProcessor(float degrees)
-            : base(MatrixFilters.CreateHueFilter(degrees))
+            : base(KnownFilterMatrices.CreateHueFilter(degrees))
         {
             this.Degrees = degrees;
         }

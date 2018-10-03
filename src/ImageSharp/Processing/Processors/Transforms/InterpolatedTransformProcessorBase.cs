@@ -5,7 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Transforms
 {
     /// <summary>
     /// The base class for performing interpolated affine and non-affine transforms.
@@ -20,6 +20,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <param name="sampler">The sampler to perform the transform operation.</param>
         protected InterpolatedTransformProcessorBase(IResampler sampler)
         {
+            Guard.NotNull(sampler, nameof(sampler));
             this.Sampler = sampler;
         }
 
@@ -31,7 +32,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <summary>
         /// Calculated the weights for the given point.
         /// This method uses more samples than the upscaled version to ensure edge pixels are correctly rendered.
-        /// Additionally the weights are nomalized.
+        /// Additionally the weights are normalized.
         /// </summary>
         /// <param name="min">The minimum sampling offset</param>
         /// <param name="max">The maximum sampling offset</param>
@@ -40,12 +41,12 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <param name="point">The transformed point dimension</param>
         /// <param name="sampler">The sampler</param>
         /// <param name="scale">The transformed image scale relative to the source</param>
-        /// <param name="weights">The collection of weights</param>
+        /// <param name="weightsRef">The reference to the collection of weights</param>
+        /// <param name="length">The length of the weights collection</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static void CalculateWeightsDown(int min, int max, int sourceMin, int sourceMax, float point, IResampler sampler, float scale, Span<float> weights)
+        protected static void CalculateWeightsDown(int min, int max, int sourceMin, int sourceMax, float point, IResampler sampler, float scale, ref float weightsRef, int length)
         {
             float sum = 0;
-            ref float weightsBaseRef = ref weights[0];
 
             // Downsampling weights requires more edge sampling plus normalization of the weights
             for (int x = 0, i = min; i <= max; i++, x++)
@@ -63,14 +64,14 @@ namespace SixLabors.ImageSharp.Processing.Processors
 
                 float weight = sampler.GetValue((index - point) / scale);
                 sum += weight;
-                Unsafe.Add(ref weightsBaseRef, x) = weight;
+                Unsafe.Add(ref weightsRef, x) = weight;
             }
 
             if (sum > 0)
             {
-                for (int i = 0; i < weights.Length; i++)
+                for (int i = 0; i < length; i++)
                 {
-                    ref float wRef = ref Unsafe.Add(ref weightsBaseRef, i);
+                    ref float wRef = ref Unsafe.Add(ref weightsRef, i);
                     wRef = wRef / sum;
                 }
             }
@@ -83,15 +84,14 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <param name="sourceMax">The maximum source bounds</param>
         /// <param name="point">The transformed point dimension</param>
         /// <param name="sampler">The sampler</param>
-        /// <param name="weights">The collection of weights</param>
+        /// <param name="weightsRef">The reference to the collection of weights</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static void CalculateWeightsScaleUp(int sourceMin, int sourceMax, float point, IResampler sampler, Span<float> weights)
+        protected static void CalculateWeightsScaleUp(int sourceMin, int sourceMax, float point, IResampler sampler, ref float weightsRef)
         {
-            ref float weightsBaseRef = ref weights[0];
             for (int x = 0, i = sourceMin; i <= sourceMax; i++, x++)
             {
                 float weight = sampler.GetValue(i - point);
-                Unsafe.Add(ref weightsBaseRef, x) = weight;
+                Unsafe.Add(ref weightsRef, x) = weight;
             }
         }
 

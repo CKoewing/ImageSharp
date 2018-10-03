@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using SixLabors.ImageSharp.Processing.Processors;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Filters;
 using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Filters
@@ -18,7 +20,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Filters
         [Fact]
         public void BlackWhite_rect_CorrectProcessor()
         {
-            this.operations.BlackWhite( this.rect);
+            this.operations.BlackWhite(this.rect);
             BlackWhiteProcessor<Rgba32> p = this.Verify<BlackWhiteProcessor<Rgba32>>(this.rect);
         }
     }

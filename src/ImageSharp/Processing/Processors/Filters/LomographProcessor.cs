@@ -1,13 +1,11 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Numerics;
-
-using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Overlays;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Converts the colors of the image recreating an old Lomograph effect.
@@ -18,26 +16,18 @@ namespace SixLabors.ImageSharp.Processing.Processors
     {
         private static readonly TPixel VeryDarkGreen = ColorBuilder<TPixel>.FromRGBA(0, 10, 0, 255);
 
-        private readonly MemoryManager memoryManager;
-
-        private readonly GraphicsOptions options;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="LomographProcessor{TPixel}" /> class.
         /// </summary>
-        /// <param name="memoryManager">The <see cref="MemoryManager"/> to use for buffer allocations.</param>
-        /// <param name="options">The options effecting blending and composition.</param>
-        public LomographProcessor(MemoryManager memoryManager, GraphicsOptions options)
-            : base(MatrixFilters.LomographFilter)
+        public LomographProcessor()
+            : base(KnownFilterMatrices.LomographFilter)
         {
-            this.memoryManager = memoryManager;
-            this.options = options;
         }
 
         /// <inheritdoc/>
-        protected override void AfterApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void AfterFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
-            new VignetteProcessor<TPixel>(this.memoryManager, VeryDarkGreen, this.options).Apply(source, sourceRectangle, configuration);
+            new VignetteProcessor<TPixel>(VeryDarkGreen).Apply(source, sourceRectangle, configuration);
         }
     }
 }

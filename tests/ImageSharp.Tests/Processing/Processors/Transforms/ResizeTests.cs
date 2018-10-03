@@ -3,19 +3,21 @@
 
 using System;
 
-using SixLabors.ImageSharp.Helpers;
+using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison;
 using SixLabors.Primitives;
-using Xunit;
 
-// ReSharper disable InconsistentNaming
+using Xunit;
 namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
 {
     public class ResizeTests : FileTestBase
     {
         public static readonly string[] CommonTestImages = { TestImages.Png.CalliphoraPartial };
+
+        private static readonly ImageComparer ValidatorComparer = ImageComparer.TolerantPercentage(0.069F);
 
         public static readonly TheoryData<string, IResampler> AllReSamplers =
             new TheoryData<string, IResampler>
@@ -47,10 +49,10 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
             {
                 SizeF newSize = image.Size() * ratio;
                 image.Mutate(x => x.Resize((Size)newSize, sampler, false));
-                string details = $"{name}-{ratio.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                FormattableString details = $"{name}-{ratio.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 
                 image.DebugSave(provider, details);
-                image.CompareToReferenceOutput(provider, details);
+                image.CompareToReferenceOutput(ImageComparer.TolerantPercentage(0.005f), provider, details);
             }
         }
 
@@ -64,7 +66,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(image.Size() / 2, true));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -78,9 +80,31 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(image.Width / 2, image.Height / 2, true));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
+
+
+        [Theory]
+        [WithFileCollection(nameof(CommonTestImages), DefaultPixelType)]
+        public void Resize_ThrowsForWrappedMemoryImage<TPixel>(TestImageProvider<TPixel> provider)
+            where TPixel : struct, IPixel<TPixel>
+        {
+            using (Image<TPixel> image0 = provider.GetImage())
+            {
+                var mmg = TestMemoryManager<TPixel>.CreateAsCopyOf(image0.GetPixelSpan());
+
+                using (var image1 = Image.WrapMemory(mmg.Memory, image0.Width, image0.Height))
+                {
+                    Assert.ThrowsAny<Exception>(
+                        () =>
+                            {
+                                image1.Mutate(x => x.Resize(image0.Width / 2, image0.Height / 2, true));
+                            });
+                }
+            }
+        }
+
 
         [Theory]
         [WithFile(TestImages.Png.Kaboom, DefaultPixelType)]
@@ -91,7 +115,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
             {
                 image.Mutate(x => x.Resize(image.Width / 2, image.Height / 2));
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -102,7 +126,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
         {
             using (Image<TPixel> image = provider.GetImage())
             {
-                image.Mutate(x => x.Resize(image.Width / 2, image.Height / 2, KnownResamplers.NearestNeighbor));
+                image.Mutate(x => x.Resize(image.Width / 2, image.Height / 2, KnownResamplers.Bicubic));
 
                 // Comparer fights decoder with gif-s. Could not use CompareToReferenceOutput here :(
                 image.DebugSave(provider, extension: Extensions.Gif);
@@ -122,7 +146,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(image.Width, image.Height, KnownResamplers.Bicubic, sourceRectangle, destRectangle, false));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -136,7 +160,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(image.Width / 3, 0, false));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -150,7 +174,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(0, image.Height / 3, false));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -169,7 +193,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -188,7 +212,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -208,7 +232,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -228,7 +252,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -248,7 +272,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -268,7 +292,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 
@@ -288,7 +312,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
                 image.Mutate(x => x.Resize(options));
 
                 image.DebugSave(provider);
-                image.CompareToReferenceOutput(provider);
+                image.CompareToReferenceOutput(ValidatorComparer, provider);
             }
         }
 

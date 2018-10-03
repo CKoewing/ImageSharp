@@ -1,15 +1,14 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using System;
-using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Primitives;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Convolution
 {
     /// <summary>
-    /// Applies a Box blur sampler to the image.
+    /// Applies box blur processing to the image.
     /// </summary>
     /// <typeparam name="TPixel">The pixel format.</typeparam>
     internal class BoxBlurProcessor<TPixel> : ImageProcessor<TPixel>
@@ -42,15 +41,15 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <summary>
         /// Gets the horizontal gradient operator.
         /// </summary>
-        public Fast2DArray<float> KernelX { get; }
+        public DenseMatrix<float> KernelX { get; }
 
         /// <summary>
         /// Gets the vertical gradient operator.
         /// </summary>
-        public Fast2DArray<float> KernelY { get; }
+        public DenseMatrix<float> KernelY { get; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
             new Convolution2PassProcessor<TPixel>(this.KernelX, this.KernelY).Apply(source, sourceRectangle, configuration);
         }
@@ -59,13 +58,13 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// Create a 1 dimensional Box kernel.
         /// </summary>
         /// <param name="horizontal">Whether to calculate a horizontal kernel.</param>
-        /// <returns>The <see cref="Fast2DArray{T}"/></returns>
-        private Fast2DArray<float> CreateBoxKernel(bool horizontal)
+        /// <returns>The <see cref="DenseMatrix{T}"/></returns>
+        private DenseMatrix<float> CreateBoxKernel(bool horizontal)
         {
             int size = this.kernelSize;
-            Fast2DArray<float> kernel = horizontal
-                ? new Fast2DArray<float>(size, 1)
-                : new Fast2DArray<float>(1, size);
+            DenseMatrix<float> kernel = horizontal
+                ? new DenseMatrix<float>(size, 1)
+                : new DenseMatrix<float>(1, size);
 
             float sum = 0F;
             for (int i = 0; i < size; i++)

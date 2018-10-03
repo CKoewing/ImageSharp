@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a filter matrix that inverts the colors of an image
@@ -17,7 +17,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// </summary>
         /// <param name="amount">The proportion of the conversion. Must be between 0 and 1.</param>
         public InvertProcessor(float amount)
-            : base(MatrixFilters.CreateInvertFilter(amount))
+            : base(KnownFilterMatrices.CreateInvertFilter(amount))
         {
             this.Amount = amount;
         }

@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a black and white filter matrix to the image
@@ -16,7 +16,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// Initializes a new instance of the <see cref="BlackWhiteProcessor{TPixel}"/> class.
         /// </summary>
         public BlackWhiteProcessor()
-            : base(MatrixFilters.BlackWhiteFilter)
+            : base(KnownFilterMatrices.BlackWhiteFilter)
         {
         }
     }

@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Overlays;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Converts the colors of the image recreating an old Polaroid effect.
@@ -17,27 +17,19 @@ namespace SixLabors.ImageSharp.Processing.Processors
         private static readonly TPixel VeryDarkOrange = ColorBuilder<TPixel>.FromRGB(102, 34, 0);
         private static readonly TPixel LightOrange = ColorBuilder<TPixel>.FromRGBA(255, 153, 102, 128);
 
-        private readonly MemoryManager memoryManager;
-
-        private readonly GraphicsOptions options;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="PolaroidProcessor{TPixel}" /> class.
         /// </summary>
-        /// <param name="memoryManager">The <see cref="MemoryManager"/> to use for buffer allocations.</param>
-        /// <param name="options">The options effecting blending and composition.</param>
-        public PolaroidProcessor(MemoryManager memoryManager, GraphicsOptions options)
-            : base(MatrixFilters.PolaroidFilter)
+        public PolaroidProcessor()
+            : base(KnownFilterMatrices.PolaroidFilter)
         {
-            this.memoryManager = memoryManager;
-            this.options = options;
         }
 
         /// <inheritdoc/>
-        protected override void AfterApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void AfterFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
-            new VignetteProcessor<TPixel>(this.memoryManager, VeryDarkOrange, this.options).Apply(source, sourceRectangle, configuration);
-            new GlowProcessor<TPixel>(this.memoryManager, LightOrange, source.Width / 4F, this.options).Apply(source, sourceRectangle, configuration);
+            new VignetteProcessor<TPixel>(VeryDarkOrange).Apply(source, sourceRectangle, configuration);
+            new GlowProcessor<TPixel>(LightOrange, source.Width / 4F).Apply(source, sourceRectangle, configuration);
         }
     }
 }

@@ -2,12 +2,15 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using SixLabors.ImageSharp.Memory;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+using SixLabors.ImageSharp.Memory;
+using SixLabors.Memory;
+
+namespace SixLabors.ImageSharp.Processing.Processors.Transforms
 {
     /// <summary>
     /// Points to a collection of of weights allocated in <see cref="WeightsBuffer"/>.
@@ -32,7 +35,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <summary>
         /// The buffer containing the weights values.
         /// </summary>
-        private readonly IBuffer<float> buffer;
+        private readonly MemorySource<float> buffer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WeightsWindow"/> struct.
@@ -46,7 +49,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         {
             this.flatStartIndex = (index * buffer.Width) + left;
             this.Left = left;
-            this.buffer = buffer.Buffer;
+            this.buffer = buffer.MemorySource;
             this.Length = length;
         }
 
@@ -57,7 +60,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref float GetStartReference()
         {
-            Span<float> span = this.buffer.Span;
+            Span<float> span = this.buffer.GetSpan();
             return ref span[this.flatStartIndex];
         }
 
@@ -66,7 +69,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// </summary>
         /// <returns>The <see cref="Span{T}"/></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<float> GetWindowSpan() => this.buffer.Slice(this.flatStartIndex, this.Length);
+        public Span<float> GetWindowSpan() => this.buffer.GetSpan().Slice(this.flatStartIndex, this.Length);
 
         /// <summary>
         /// Computes the sum of vectors in 'rowSpan' weighted by weight values, pointed by this <see cref="WeightsWindow"/> instance.

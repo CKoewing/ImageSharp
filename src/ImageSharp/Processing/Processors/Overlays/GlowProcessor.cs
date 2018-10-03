@@ -2,15 +2,18 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Buffers;
 using System.Numerics;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.Memory;
+using SixLabors.ImageSharp.ParallelUtils;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Primitives;
+using SixLabors.Memory;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Overlays
 {
     /// <summary>
     /// An <see cref="IImageProcessor{TPixel}"/> that applies a radial glow effect an <see cref="Image{TPixel}"/>.
@@ -19,31 +22,55 @@ namespace SixLabors.ImageSharp.Processing.Processors
     internal class GlowProcessor<TPixel> : ImageProcessor<TPixel>
         where TPixel : struct, IPixel<TPixel>
     {
-        private readonly MemoryManager memoryManager;
-
-        private readonly GraphicsOptions options;
         private readonly PixelBlender<TPixel> blender;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GlowProcessor{TPixel}" /> class.
         /// </summary>
-        /// <param name="memoryManager">The <see cref="MemoryManager"/> to use for buffer allocations.</param>
         /// <param name="color">The color or the glow.</param>
-        /// <param name="radius">The radius of the glow.</param>
-        /// <param name="options">The options effecting blending and composition.</param>
-        public GlowProcessor(MemoryManager memoryManager, TPixel color, ValueSize radius, GraphicsOptions options)
+        public GlowProcessor(TPixel color)
+            : this(color, 0)
         {
-            this.memoryManager = memoryManager;
-            this.options = options;
-            this.GlowColor = color;
-            this.Radius = radius;
-            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(this.options.BlenderMode);
         }
 
         /// <summary>
-        /// Gets the Graphics options to alter how processor is applied.
+        /// Initializes a new instance of the <see cref="GlowProcessor{TPixel}" /> class.
         /// </summary>
-        public GraphicsOptions GraphicsOptions => this.options;
+        /// <param name="color">The color or the glow.</param>
+        /// <param name="radius">The radius of the glow.</param>
+        public GlowProcessor(TPixel color, ValueSize radius)
+            : this(color, radius, GraphicsOptions.Default)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GlowProcessor{TPixel}" /> class.
+        /// </summary>
+        /// <param name="color">The color or the glow.</param>
+        /// <param name="options">The options effecting blending and composition.</param>
+        public GlowProcessor(TPixel color, GraphicsOptions options)
+            : this(color, 0, options)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GlowProcessor{TPixel}" /> class.
+        /// </summary>
+        /// <param name="color">The color or the glow.</param>
+        /// <param name="radius">The radius of the glow.</param>
+        /// <param name="options">The options effecting blending and composition.</param>
+        public GlowProcessor(TPixel color, ValueSize radius, GraphicsOptions options)
+        {
+            this.GlowColor = color;
+            this.Radius = radius;
+            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(options);
+            this.GraphicsOptions = options;
+        }
+
+        /// <summary>
+        /// Gets the options effecting blending and composition
+        /// </summary>
+        public GraphicsOptions GraphicsOptions { get; }
 
         /// <summary>
         /// Gets or sets the glow color to apply.
@@ -56,14 +83,15 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public ValueSize Radius { get; set; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
+            // TODO: can we simplify the rectangle calculation?
             int startY = sourceRectangle.Y;
             int endY = sourceRectangle.Bottom;
             int startX = sourceRectangle.X;
             int endX = sourceRectangle.Right;
             TPixel glowColor = this.GlowColor;
-            Vector2 centre = Rectangle.Center(sourceRectangle);
+            Vector2 center = Rectangle.Center(sourceRectangle);
 
             float finalRadius = this.Radius.Calculate(source.Size());
 
@@ -87,38 +115,43 @@ namespace SixLabors.ImageSharp.Processing.Processors
             }
 
             int width = maxX - minX;
-            using (IBuffer<TPixel> rowColors = this.memoryManager.Allocate<TPixel>(width))
+            int offsetX = minX - startX;
+
+            var workingRect = Rectangle.FromLTRB(minX, minY, maxX, maxY);
+
+            using (IMemoryOwner<TPixel> rowColors = source.MemoryAllocator.Allocate<TPixel>(width))
             {
-                // Be careful! Do not capture rowColorsSpan in the lambda below!
-                Span<TPixel> rowColorsSpan = rowColors.Span;
+                rowColors.GetSpan().Fill(glowColor);
 
-                for (int i = 0; i < width; i++)
-                {
-                    rowColorsSpan[i] = glowColor;
-                }
-
-                Parallel.For(
-                    minY,
-                    maxY,
-                    configuration.ParallelOptions,
-                    y =>
-                    {
-                        using (IBuffer<float> amounts = this.memoryManager.Allocate<float>(width))
+                ParallelHelper.IterateRowsWithTempBuffer<float>(
+                    workingRect,
+                    configuration,
+                    (rows, amounts) =>
                         {
                             Span<float> amountsSpan = amounts.Span;
-                            int offsetY = y - startY;
-                            int offsetX = minX - startX;
-                            for (int i = 0; i < width; i++)
+
+                            for (int y = rows.Min; y < rows.Max; y++)
                             {
-                                float distance = Vector2.Distance(centre, new Vector2(i + offsetX, offsetY));
-                                amountsSpan[i] = (this.options.BlendPercentage * (1 - (.95F * (distance / maxDistance)))).Clamp(0, 1);
+                                int offsetY = y - startY;
+
+                                for (int i = 0; i < width; i++)
+                                {
+                                    float distance = Vector2.Distance(center, new Vector2(i + offsetX, offsetY));
+                                    amountsSpan[i] =
+                                        (this.GraphicsOptions.BlendPercentage * (1 - (.95F * (distance / maxDistance))))
+                                        .Clamp(0, 1);
+                                }
+
+                                Span<TPixel> destination = source.GetPixelRowSpan(offsetY).Slice(offsetX, width);
+
+                                this.blender.Blend(
+                                    source.MemoryAllocator,
+                                    destination,
+                                    destination,
+                                    rowColors.GetSpan(),
+                                    amountsSpan);
                             }
-
-                            Span<TPixel> destination = source.GetPixelRowSpan(offsetY).Slice(offsetX, width);
-
-                            this.blender.Blend(this.memoryManager, destination, destination, rowColors.Span, amountsSpan);
-                        }
-                    });
+                        });
             }
         }
     }

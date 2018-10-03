@@ -1,14 +1,14 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors;
-
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
 using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Transforms
 {
-
+    using SixLabors.ImageSharp.Processing;
+    using SixLabors.ImageSharp.Processing.Processors.Transforms;
 
     public class PadTest : BaseImageOperationsExtensionTest
     {

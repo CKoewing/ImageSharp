@@ -5,13 +5,10 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Xunit;
 
-// ReSharper disable InconsistentNaming
 namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
 {
-    using System;
-    using System.Reflection;
-
-    public class RotateTests : FileTestBase
+    [GroupOutput("Transforms")]
+    public class RotateTests
     {
         public static readonly TheoryData<float> RotateAngles
             = new TheoryData<float>
@@ -19,39 +16,31 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
             50, -50, 170, -170
         };
 
-        public static readonly TheoryData<RotateType> RotateEnumValues
-            = new TheoryData<RotateType>
+        public static readonly TheoryData<RotateMode> RotateEnumValues
+            = new TheoryData<RotateMode>
         {
-            RotateType.None,
-            RotateType.Rotate90,
-            RotateType.Rotate180,
-            RotateType.Rotate270
+            RotateMode.None,
+            RotateMode.Rotate90,
+            RotateMode.Rotate180,
+            RotateMode.Rotate270
         };
-        
+
         [Theory]
-        [WithTestPatternImages(nameof(RotateAngles), 100, 50, DefaultPixelType)]
-        [WithTestPatternImages(nameof(RotateAngles), 50, 100, DefaultPixelType)]
+        [WithTestPatternImages(nameof(RotateAngles), 100, 50, PixelTypes.Rgba32)]
+        [WithTestPatternImages(nameof(RotateAngles), 50, 100, PixelTypes.Rgba32)]
         public void Rotate_WithAngle<TPixel>(TestImageProvider<TPixel> provider, float value)
             where TPixel : struct, IPixel<TPixel>
         {
-            using (Image<TPixel> image = provider.GetImage())
-            {
-                image.Mutate(x => x.Rotate(value));
-                image.DebugSave(provider, value);
-            }
+            provider.RunValidatingProcessorTest(ctx => ctx.Rotate(value), value, appendPixelTypeToFileName: false);
         }
-        
+
         [Theory]
-        [WithTestPatternImages(nameof(RotateEnumValues), 100, 50, DefaultPixelType)]
-        [WithTestPatternImages(nameof(RotateEnumValues), 50, 100, DefaultPixelType)]
-        public void Rotate_WithRotateTypeEnum<TPixel>(TestImageProvider<TPixel> provider, RotateType value)
+        [WithTestPatternImages(nameof(RotateEnumValues), 100, 50, PixelTypes.Rgba32)]
+        [WithTestPatternImages(nameof(RotateEnumValues), 50, 100, PixelTypes.Rgba32)]
+        public void Rotate_WithRotateTypeEnum<TPixel>(TestImageProvider<TPixel> provider, RotateMode value)
             where TPixel : struct, IPixel<TPixel>
         {
-            using (Image<TPixel> image = provider.GetImage())
-            {
-                image.Mutate(x => x.Rotate(value));
-                image.DebugSave(provider, value);
-            }
+            provider.RunValidatingProcessorTest(ctx => ctx.Rotate(value), value, appendPixelTypeToFileName: false);
         }
     }
 }

@@ -2,15 +2,18 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Buffers;
 using System.Numerics;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.Memory;
+using SixLabors.ImageSharp.ParallelUtils;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Primitives;
+using SixLabors.Memory;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Overlays
 {
     /// <summary>
     /// An <see cref="IImageProcessor{TPixel}"/> that applies a radial vignette effect to an <see cref="Image{TPixel}"/>.
@@ -19,47 +22,49 @@ namespace SixLabors.ImageSharp.Processing.Processors
     internal class VignetteProcessor<TPixel> : ImageProcessor<TPixel>
         where TPixel : struct, IPixel<TPixel>
     {
-        private readonly MemoryManager memoryManager;
-
-        private readonly GraphicsOptions options;
         private readonly PixelBlender<TPixel> blender;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VignetteProcessor{TPixel}" /> class.
         /// </summary>
-        /// <param name="memoryManager">The <see cref="MemoryManager"/> to use for buffer allocations.</param>
         /// <param name="color">The color of the vignette.</param>
-        /// <param name="radiusX">The x-radius.</param>
-        /// <param name="radiusY">The y-radius.</param>
-        /// <param name="options">The options effecting blending and composition.</param>
-        public VignetteProcessor(MemoryManager memoryManager, TPixel color, ValueSize radiusX, ValueSize radiusY, GraphicsOptions options)
+        public VignetteProcessor(TPixel color)
+            : this(color, GraphicsOptions.Default)
         {
-            this.VignetteColor = color;
-            this.RadiusX = radiusX;
-            this.RadiusY = radiusY;
-            this.memoryManager = memoryManager;
-            this.options = options;
-            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(this.options.BlenderMode);
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VignetteProcessor{TPixel}" /> class.
         /// </summary>
-        /// <param name="memoryManager">The <see cref="MemoryManager"/> to use for buffer allocations.</param>
         /// <param name="color">The color of the vignette.</param>
         /// <param name="options">The options effecting blending and composition.</param>
-        public VignetteProcessor(MemoryManager memoryManager, TPixel color,  GraphicsOptions options)
+        public VignetteProcessor(TPixel color, GraphicsOptions options)
         {
             this.VignetteColor = color;
-            this.memoryManager = memoryManager;
-            this.options = options;
-            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(this.options.BlenderMode);
+            this.GraphicsOptions = options;
+            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(options);
         }
 
         /// <summary>
-        /// Gets the Graphics options to alter how processor is applied.
+        /// Initializes a new instance of the <see cref="VignetteProcessor{TPixel}" /> class.
         /// </summary>
-        public GraphicsOptions GraphicsOptions => this.options;
+        /// <param name="color">The color of the vignette.</param>
+        /// <param name="radiusX">The x-radius.</param>
+        /// <param name="radiusY">The y-radius.</param>
+        /// <param name="options">The options effecting blending and composition.</param>
+        public VignetteProcessor(TPixel color, ValueSize radiusX, ValueSize radiusY, GraphicsOptions options)
+        {
+            this.VignetteColor = color;
+            this.RadiusX = radiusX;
+            this.RadiusY = radiusY;
+            this.blender = PixelOperations<TPixel>.Instance.GetPixelBlender(options);
+            this.GraphicsOptions = options;
+        }
+
+        /// <summary>
+        /// Gets the options effecting blending and composition
+        /// </summary>
+        public GraphicsOptions GraphicsOptions { get; }
 
         /// <summary>
         /// Gets or sets the vignette color to apply.
@@ -77,7 +82,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public ValueSize RadiusY { get; set; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
             int startY = sourceRectangle.Y;
             int endY = sourceRectangle.Bottom;
@@ -86,10 +91,11 @@ namespace SixLabors.ImageSharp.Processing.Processors
             TPixel vignetteColor = this.VignetteColor;
             Vector2 centre = Rectangle.Center(sourceRectangle);
 
-            float finalradiusX = this.RadiusX.Calculate(source.Size());
-            float finalradiusY = this.RadiusY.Calculate(source.Size());
-            float rX = finalradiusX > 0 ? MathF.Min(finalradiusX, sourceRectangle.Width * .5F) : sourceRectangle.Width * .5F;
-            float rY = finalradiusY > 0 ? MathF.Min(finalradiusY, sourceRectangle.Height * .5F) : sourceRectangle.Height * .5F;
+            Size sourceSize = source.Size();
+            float finalRadiusX = this.RadiusX.Calculate(sourceSize);
+            float finalRadiusY = this.RadiusY.Calculate(sourceSize);
+            float rX = finalRadiusX > 0 ? MathF.Min(finalRadiusX, sourceRectangle.Width * .5F) : sourceRectangle.Width * .5F;
+            float rY = finalRadiusY > 0 ? MathF.Min(finalRadiusY, sourceRectangle.Height * .5F) : sourceRectangle.Height * .5F;
             float maxDistance = MathF.Sqrt((rX * rX) + (rY * rY));
 
             // Align start/end positions.
@@ -110,36 +116,42 @@ namespace SixLabors.ImageSharp.Processing.Processors
             }
 
             int width = maxX - minX;
-            using (IBuffer<TPixel> rowColors = this.memoryManager.Allocate<TPixel>(width))
+            int offsetX = minX - startX;
+
+            var workingRect = Rectangle.FromLTRB(minX, minY, maxX, maxY);
+
+            using (IMemoryOwner<TPixel> rowColors = source.MemoryAllocator.Allocate<TPixel>(width))
             {
-                // Be careful! Do not capture rowColorsSpan in the lambda below!
-                Span<TPixel> rowColorsSpan = rowColors.Span;
+                rowColors.GetSpan().Fill(vignetteColor);
 
-                for (int i = 0; i < width; i++)
-                {
-                    rowColorsSpan[i] = vignetteColor;
-                }
-
-                Parallel.For(
-                    minY,
-                    maxY,
-                    configuration.ParallelOptions,
-                    y =>
+                ParallelHelper.IterateRowsWithTempBuffer<float>(
+                    workingRect,
+                    configuration,
+                    (rows, amounts) =>
                         {
-                            using (IBuffer<float> amounts = this.memoryManager.Allocate<float>(width))
+                            Span<float> amountsSpan = amounts.Span;
+
+                            for (int y = rows.Min; y < rows.Max; y++)
                             {
-                                Span<float> amountsSpan = amounts.Span;
                                 int offsetY = y - startY;
-                                int offsetX = minX - startX;
+
                                 for (int i = 0; i < width; i++)
                                 {
                                     float distance = Vector2.Distance(centre, new Vector2(i + offsetX, offsetY));
-                                    amountsSpan[i] = (this.options.BlendPercentage * (.9F * (distance / maxDistance))).Clamp(0, 1);
+                                    amountsSpan[i] =
+                                        (this.GraphicsOptions.BlendPercentage * (.9F * (distance / maxDistance))).Clamp(
+                                            0,
+                                            1);
                                 }
 
                                 Span<TPixel> destination = source.GetPixelRowSpan(offsetY).Slice(offsetX, width);
 
-                                this.blender.Blend(this.memoryManager, destination, destination, rowColors.Span, amountsSpan);
+                                this.blender.Blend(
+                                    source.MemoryAllocator,
+                                    destination,
+                                    destination,
+                                    rowColors.GetSpan(),
+                                    amountsSpan);
                             }
                         });
             }

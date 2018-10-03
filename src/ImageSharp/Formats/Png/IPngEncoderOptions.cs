@@ -1,32 +1,30 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Collections.Generic;
-using System.IO;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Quantizers;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace SixLabors.ImageSharp.Formats.Png
 {
     /// <summary>
-    /// The options availible for manipulating the encoder pipeline
+    /// The options available for manipulating the encoder pipeline
     /// </summary>
     internal interface IPngEncoderOptions
     {
         /// <summary>
-        /// Gets a value indicating whether the metadata should be ignored when the image is being encoded.
+        /// Gets the number of bits per sample or per palette index (not per pixel).
+        /// Not all values are allowed for all <see cref="ColorType"/> values.
         /// </summary>
-        bool IgnoreMetadata { get; }
+        PngBitDepth? BitDepth { get; }
 
         /// <summary>
-        /// Gets the size of the color palette to use. Set to zero to leav png encoding to use pixel data.
+        /// Gets the color type
         /// </summary>
-        int PaletteSize { get; }
+        PngColorType? ColorType { get; }
 
         /// <summary>
-        /// Gets the png color type
+        /// Gets the filter method.
         /// </summary>
-        PngColorType PngColorType { get; }
+        PngFilterMethod? FilterMethod { get; }
 
         /// <summary>
         /// Gets the compression level 1-9.
@@ -35,15 +33,13 @@ namespace SixLabors.ImageSharp.Formats.Png
         int CompressionLevel { get; }
 
         /// <summary>
-        /// Gets the gamma value, that will be written
-        /// the the stream, when the <see cref="WriteGamma"/> property
-        /// is set to true. The default value is 2.2F.
+        /// Gets the gamma value, that will be written the the image.
         /// </summary>
         /// <value>The gamma value of the image.</value>
-        float Gamma { get; }
+        float? Gamma { get; }
 
         /// <summary>
-        /// Gets  quantizer for reducing the color count.
+        /// Gets the quantizer for reducing the color count.
         /// </summary>
         IQuantizer Quantizer { get; }
 
@@ -51,11 +47,5 @@ namespace SixLabors.ImageSharp.Formats.Png
         /// Gets the transparency threshold.
         /// </summary>
         byte Threshold { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether this instance should write
-        /// gamma information to the stream. The default value is false.
-        /// </summary>
-        bool WriteGamma { get; }
     }
 }

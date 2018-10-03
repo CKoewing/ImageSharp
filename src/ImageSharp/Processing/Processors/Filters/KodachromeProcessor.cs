@@ -3,7 +3,7 @@
 
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Filters
 {
     /// <summary>
     /// Applies a filter matrix recreating an old Kodachrome camera effect matrix to the image
@@ -16,7 +16,7 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// Initializes a new instance of the <see cref="KodachromeProcessor{TPixel}"/> class.
         /// </summary>
         public KodachromeProcessor()
-            : base(MatrixFilters.KodachromeFilter)
+            : base(KnownFilterMatrices.KodachromeFilter)
         {
         }
     }

@@ -7,6 +7,9 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Processors.Filters
 {
+    using SixLabors.ImageSharp.Processing;
+    using SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison;
+
     [GroupOutput("Filters")]
     public class BlackWhiteTest
     {
@@ -15,7 +18,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Filters
         public void ApplyBlackWhiteFilter<TPixel>(TestImageProvider<TPixel> provider)
             where TPixel : struct, IPixel<TPixel>
         {
-            provider.RunValidatingProcessorTest(ctx => ctx.BlackWhite());
+            provider.RunValidatingProcessorTest(ctx => ctx.BlackWhite(), comparer: ImageComparer.TolerantPercentage(0.002f));
         }
     }
 }

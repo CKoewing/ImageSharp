@@ -4,12 +4,13 @@
 using System;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.MetaData.Profiles.Exif;
+using SixLabors.ImageSharp.ParallelUtils;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Transforms
 {
     /// <summary>
     /// Provides methods that allow the rotating of images.
@@ -46,21 +47,21 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public float Degrees { get; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, ImageFrame<TPixel> destination, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, ImageFrame<TPixel> destination, Rectangle sourceRectangle, Configuration configuration)
         {
             if (this.OptimizedApply(source, destination, configuration))
             {
                 return;
             }
 
-            base.OnApply(source, destination, sourceRectangle, configuration);
+            base.OnFrameApply(source, destination, sourceRectangle, configuration);
         }
 
         /// <inheritdoc/>
         protected override void AfterImageApply(Image<TPixel> source, Image<TPixel> destination, Rectangle sourceRectangle)
         {
             ExifProfile profile = destination.MetaData.ExifProfile;
-            if (profile == null)
+            if (profile is null)
             {
                 return;
             }
@@ -147,25 +148,27 @@ namespace SixLabors.ImageSharp.Processing.Processors
             int height = source.Height;
             Rectangle destinationBounds = destination.Bounds();
 
-            Parallel.For(
-                0,
-                height,
-                configuration.ParallelOptions,
-                y =>
-                {
-                    Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
-                    for (int x = 0; x < width; x++)
+            ParallelHelper.IterateRows(
+                source.Bounds(),
+                configuration,
+                rows =>
                     {
-                        int newX = height - y - 1;
-                        newX = height - newX - 1;
-                        int newY = width - x - 1;
-
-                        if (destinationBounds.Contains(newX, newY))
+                        for (int y = rows.Min; y < rows.Max; y++)
                         {
-                            destination[newX, newY] = sourceRow[x];
+                            Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
+                            for (int x = 0; x < width; x++)
+                            {
+                                int newX = height - y - 1;
+                                newX = height - newX - 1;
+                                int newY = width - x - 1;
+
+                                if (destinationBounds.Contains(newX, newY))
+                                {
+                                    destination[newX, newY] = sourceRow[x];
+                                }
+                            }
                         }
-                    }
-                });
+                    });
         }
 
         /// <summary>
@@ -179,20 +182,22 @@ namespace SixLabors.ImageSharp.Processing.Processors
             int width = source.Width;
             int height = source.Height;
 
-            Parallel.For(
-                0,
-                height,
-                configuration.ParallelOptions,
-                y =>
-                {
-                    Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
-                    Span<TPixel> targetRow = destination.GetPixelRowSpan(height - y - 1);
-
-                    for (int x = 0; x < width; x++)
+            ParallelHelper.IterateRows(
+                source.Bounds(),
+                configuration,
+                rows =>
                     {
-                        targetRow[width - x - 1] = sourceRow[x];
-                    }
-                });
+                        for (int y = rows.Min; y < rows.Max; y++)
+                        {
+                            Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
+                            Span<TPixel> targetRow = destination.GetPixelRowSpan(height - y - 1);
+
+                            for (int x = 0; x < width; x++)
+                            {
+                                targetRow[width - x - 1] = sourceRow[x];
+                            }
+                        }
+                    });
         }
 
         /// <summary>
@@ -207,22 +212,25 @@ namespace SixLabors.ImageSharp.Processing.Processors
             int height = source.Height;
             Rectangle destinationBounds = destination.Bounds();
 
-            Parallel.For(
-                0,
-                height,
-                configuration.ParallelOptions,
-                y =>
-                {
-                    Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
-                    int newX = height - y - 1;
-                    for (int x = 0; x < width; x++)
+            ParallelHelper.IterateRows(
+                source.Bounds(),
+                configuration,
+                rows =>
                     {
-                        if (destinationBounds.Contains(newX, x))
+                        for (int y = rows.Min; y < rows.Max; y++)
                         {
-                            destination[newX, x] = sourceRow[x];
+                            Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
+                            int newX = height - y - 1;
+                            for (int x = 0; x < width; x++)
+                            {
+                                // TODO: Optimize this:
+                                if (destinationBounds.Contains(newX, x))
+                                {
+                                    destination[newX, x] = sourceRow[x];
+                                }
+                            }
                         }
-                    }
-                });
+                    });
         }
     }
 }

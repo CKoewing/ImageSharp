@@ -3,9 +3,8 @@
 
 using System.IO;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Quantizers;
+using SixLabors.ImageSharp.Processing.Processors.Quantization;
 
 namespace SixLabors.ImageSharp.Formats.Png
 {
@@ -15,19 +14,20 @@ namespace SixLabors.ImageSharp.Formats.Png
     public sealed class PngEncoder : IImageEncoder, IPngEncoderOptions
     {
         /// <summary>
-        /// Gets or sets a value indicating whether the metadata should be ignored when the image is being encoded.
+        /// Gets or sets the number of bits per sample or per palette index (not per pixel).
+        /// Not all values are allowed for all <see cref="ColorType"/> values.
         /// </summary>
-        public bool IgnoreMetadata { get; set; }
+        public PngBitDepth? BitDepth { get; set; }
 
         /// <summary>
-        /// Gets or sets the size of the color palette to use. Set to zero to leave png encoding to use pixel data.
+        /// Gets or sets the color type.
         /// </summary>
-        public int PaletteSize { get; set; } = 0;
+        public PngColorType? ColorType { get; set; }
 
         /// <summary>
-        /// Gets or sets the png color type
+        /// Gets or sets the filter method.
         /// </summary>
-        public PngColorType PngColorType { get; set; } = PngColorType.RgbWithAlpha;
+        public PngFilterMethod? FilterMethod { get; set; }
 
         /// <summary>
         /// Gets or sets the compression level 1-9.
@@ -36,15 +36,13 @@ namespace SixLabors.ImageSharp.Formats.Png
         public int CompressionLevel { get; set; } = 6;
 
         /// <summary>
-        /// Gets or sets the gamma value, that will be written
-        /// the the stream, when the <see cref="WriteGamma"/> property
-        /// is set to true. The default value is 2.2F.
+        /// Gets or sets the gamma value, that will be written the the image.
         /// </summary>
-        /// <value>The gamma value of the image.</value>
-        public float Gamma { get; set; } = 2.2F;
+        public float? Gamma { get; set; }
 
         /// <summary>
         /// Gets or sets quantizer for reducing the color count.
+        /// Defaults to the <see cref="WuQuantizer"/>
         /// </summary>
         public IQuantizer Quantizer { get; set; }
 
@@ -52,12 +50,6 @@ namespace SixLabors.ImageSharp.Formats.Png
         /// Gets or sets the transparency threshold.
         /// </summary>
         public byte Threshold { get; set; } = 255;
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this instance should write
-        /// gamma information to the stream. The default value is false.
-        /// </summary>
-        public bool WriteGamma { get; set; }
 
         /// <summary>
         /// Encodes the image to the specified stream from the <see cref="Image{TPixel}"/>.
@@ -68,7 +60,7 @@ namespace SixLabors.ImageSharp.Formats.Png
         public void Encode<TPixel>(Image<TPixel> image, Stream stream)
             where TPixel : struct, IPixel<TPixel>
         {
-            using (var encoder = new PngEncoderCore(image.GetMemoryManager(), this))
+            using (var encoder = new PngEncoderCore(image.GetMemoryAllocator(), this))
             {
                 encoder.Encode(image, stream);
             }

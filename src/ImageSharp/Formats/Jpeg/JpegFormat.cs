@@ -2,15 +2,23 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Collections.Generic;
-using SixLabors.ImageSharp.Formats.Jpeg.GolangPort;
 
 namespace SixLabors.ImageSharp.Formats.Jpeg
 {
     /// <summary>
     /// Registers the image encoders, decoders and mime type detectors for the jpeg format.
     /// </summary>
-    internal sealed class JpegFormat : IImageFormat
+    public sealed class JpegFormat : IImageFormat<JpegMetaData>
     {
+        private JpegFormat()
+        {
+        }
+
+        /// <summary>
+        /// Gets the current instance.
+        /// </summary>
+        public static JpegFormat Instance { get; } = new JpegFormat();
+
         /// <inheritdoc/>
         public string Name => "JPEG";
 
@@ -18,9 +26,12 @@ namespace SixLabors.ImageSharp.Formats.Jpeg
         public string DefaultMimeType => "image/jpeg";
 
         /// <inheritdoc/>
-        public IEnumerable<string> MimeTypes => OrigJpegConstants.MimeTypes;
+        public IEnumerable<string> MimeTypes => JpegConstants.MimeTypes;
 
         /// <inheritdoc/>
-        public IEnumerable<string> FileExtensions => OrigJpegConstants.FileExtensions;
+        public IEnumerable<string> FileExtensions => JpegConstants.FileExtensions;
+
+        /// <inheritdoc/>
+        public JpegMetaData CreateDefaultFormatMetaData() => new JpegMetaData();
     }
 }

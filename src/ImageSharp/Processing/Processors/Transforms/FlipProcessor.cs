@@ -2,14 +2,16 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Buffers;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Helpers;
 using SixLabors.ImageSharp.Memory;
+using SixLabors.ImageSharp.ParallelUtils;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.Memory;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Transforms
 {
     /// <summary>
     /// Provides methods that allow the flipping of an image around its center point.
@@ -21,98 +23,74 @@ namespace SixLabors.ImageSharp.Processing.Processors
         /// <summary>
         /// Initializes a new instance of the <see cref="FlipProcessor{TPixel}"/> class.
         /// </summary>
-        /// <param name="flipType">The <see cref="FlipType"/> used to perform flipping.</param>
-        public FlipProcessor(FlipType flipType)
+        /// <param name="flipMode">The <see cref="FlipMode"/> used to perform flipping.</param>
+        public FlipProcessor(FlipMode flipMode)
         {
-            this.FlipType = flipType;
+            this.FlipMode = flipMode;
         }
 
         /// <summary>
-        /// Gets the <see cref="FlipType"/> used to perform flipping.
+        /// Gets the <see cref="FlipMode"/> used to perform flipping.
         /// </summary>
-        public FlipType FlipType { get; }
+        public FlipMode FlipMode { get; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
         {
-            switch (this.FlipType)
+            switch (this.FlipMode)
             {
                 // No default needed as we have already set the pixels.
-                case FlipType.Vertical:
+                case FlipMode.Vertical:
                     this.FlipX(source, configuration);
                     break;
-                case FlipType.Horizontal:
+                case FlipMode.Horizontal:
                     this.FlipY(source, configuration);
                     break;
             }
         }
 
         /// <summary>
-        /// Swaps the image at the X-axis, which goes horizontally through the middle
-        /// at half the height of the image.
+        /// Swaps the image at the X-axis, which goes horizontally through the middle at half the height of the image.
         /// </summary>
         /// <param name="source">The source image to apply the process to.</param>
         /// <param name="configuration">The configuration.</param>
         private void FlipX(ImageFrame<TPixel> source, Configuration configuration)
         {
             int height = source.Height;
-            int halfHeight = (int)Math.Ceiling(source.Height * .5F);
 
-            using (Buffer2D<TPixel> targetPixels = configuration.MemoryManager.Allocate2D<TPixel>(source.Size()))
+            using (IMemoryOwner<TPixel> tempBuffer = configuration.MemoryAllocator.Allocate<TPixel>(source.Width))
             {
-                Parallel.For(
-                    0,
-                    halfHeight,
-                    configuration.ParallelOptions,
-                    y =>
-                        {
-                            int newY = height - y - 1;
-                            Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
-                            Span<TPixel> altSourceRow = source.GetPixelRowSpan(newY);
-                            Span<TPixel> targetRow = targetPixels.GetRowSpan(y);
-                            Span<TPixel> altTargetRow = targetPixels.GetRowSpan(newY);
+                Span<TPixel> temp = tempBuffer.Memory.Span;
 
-                            sourceRow.CopyTo(altTargetRow);
-                            altSourceRow.CopyTo(targetRow);
-                        });
-
-                Buffer2D<TPixel>.SwapContents(source.PixelBuffer, targetPixels);
+                for (int yTop = 0; yTop < height / 2; yTop++)
+                {
+                    int yBottom = height - yTop - 1;
+                    Span<TPixel> topRow = source.GetPixelRowSpan(yBottom);
+                    Span<TPixel> bottomRow = source.GetPixelRowSpan(yTop);
+                    topRow.CopyTo(temp);
+                    bottomRow.CopyTo(topRow);
+                    temp.CopyTo(bottomRow);
+                }
             }
         }
 
         /// <summary>
-        /// Swaps the image at the Y-axis, which goes vertically through the middle
-        /// at half of the width of the image.
+        /// Swaps the image at the Y-axis, which goes vertically through the middle at half of the width of the image.
         /// </summary>
         /// <param name="source">The source image to apply the process to.</param>
         /// <param name="configuration">The configuration.</param>
         private void FlipY(ImageFrame<TPixel> source, Configuration configuration)
         {
-            int width = source.Width;
-            int height = source.Height;
-            int halfWidth = (int)Math.Ceiling(width * .5F);
-
-            using (Buffer2D<TPixel> targetPixels = configuration.MemoryManager.Allocate2D<TPixel>(source.Size()))
-            {
-                Parallel.For(
-                    0,
-                    height,
-                    configuration.ParallelOptions,
-                    y =>
+            ParallelHelper.IterateRows(
+                source.Bounds(),
+                configuration,
+                rows =>
+                    {
+                        for (int y = rows.Min; y < rows.Max; y++)
                         {
-                            Span<TPixel> sourceRow = source.GetPixelRowSpan(y);
-                            Span<TPixel> targetRow = targetPixels.GetRowSpan(y);
-
-                            for (int x = 0; x < halfWidth; x++)
-                            {
-                                int newX = width - x - 1;
-                                targetRow[x] = sourceRow[newX];
-                                targetRow[newX] = sourceRow[x];
-                            }
-                        });
-
-                Buffer2D<TPixel>.SwapContents(source.PixelBuffer, targetPixels);
-            }
+                            source.GetPixelRowSpan(y).Reverse();
+                        }
+                    });
         }
     }
 }

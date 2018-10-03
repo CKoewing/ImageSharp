@@ -2,13 +2,13 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
-using System.Threading.Tasks;
+
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Helpers;
+using SixLabors.ImageSharp.ParallelUtils;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.Primitives;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Binarization
 {
     /// <summary>
     /// Performs simple binary threshold filtering against an image.
@@ -56,7 +56,10 @@ namespace SixLabors.ImageSharp.Processing.Processors
         public TPixel LowerColor { get; set; }
 
         /// <inheritdoc/>
-        protected override void OnApply(ImageFrame<TPixel> source, Rectangle sourceRectangle, Configuration configuration)
+        protected override void OnFrameApply(
+            ImageFrame<TPixel> source,
+            Rectangle sourceRectangle,
+            Configuration configuration)
         {
             float threshold = this.Threshold * 255F;
             TPixel upper = this.UpperColor;
@@ -70,25 +73,31 @@ namespace SixLabors.ImageSharp.Processing.Processors
 
             bool isAlphaOnly = typeof(TPixel) == typeof(Alpha8);
 
-            Parallel.For(
-                startY,
-                endY,
-                configuration.ParallelOptions,
-                y =>
-                {
-                    Span<TPixel> row = source.GetPixelRowSpan(y);
-                    var rgba = default(Rgba32);
+            var workingRect = Rectangle.FromLTRB(startX, startY, endX, endY);
 
-                    for (int x = startX; x < endX; x++)
+            ParallelHelper.IterateRows(
+                workingRect,
+                configuration,
+                rows =>
                     {
-                        ref TPixel color = ref row[x];
-                        color.ToRgba32(ref rgba);
+                        for (int y = rows.Min; y < rows.Max; y++)
+                        {
+                            Span<TPixel> row = source.GetPixelRowSpan(y);
+                            Rgba32 rgba = default;
 
-                        // Convert to grayscale using ITU-R Recommendation BT.709 if required
-                        float luminance = isAlphaOnly ? rgba.A : (.2126F * rgba.R) + (.7152F * rgba.G) + (.0722F * rgba.B);
-                        color = luminance >= threshold ? upper : lower;
-                    }
-                });
+                            for (int x = startX; x < endX; x++)
+                            {
+                                ref TPixel color = ref row[x];
+                                color.ToRgba32(ref rgba);
+
+                                // Convert to grayscale using ITU-R Recommendation BT.709 if required
+                                float luminance = isAlphaOnly
+                                                      ? rgba.A
+                                                      : (.2126F * rgba.R) + (.7152F * rgba.G) + (.0722F * rgba.B);
+                                color = luminance >= threshold ? upper : lower;
+                            }
+                        }
+                    });
         }
     }
 }

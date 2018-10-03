@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.MetaData.Profiles.Exif;
 using SixLabors.ImageSharp.MetaData.Profiles.Icc;
 
@@ -12,20 +11,27 @@ namespace SixLabors.ImageSharp.MetaData
     /// <summary>
     /// Encapsulates the metadata of an image.
     /// </summary>
-    public sealed class ImageMetaData
+    public sealed class ImageMetaData : IDeepCloneable<ImageMetaData>
     {
         /// <summary>
         /// The default horizontal resolution value (dots per inch) in x direction.
-        /// <remarks>The default value is 96 dots per inch.</remarks>
+        /// <remarks>The default value is 96 <see cref="PixelResolutionUnit.PixelsPerInch"/>.</remarks>
         /// </summary>
         public const double DefaultHorizontalResolution = 96;
 
         /// <summary>
         /// The default vertical resolution value (dots per inch) in y direction.
-        /// <remarks>The default value is 96 dots per inch.</remarks>
+        /// <remarks>The default value is 96 <see cref="PixelResolutionUnit.PixelsPerInch"/>.</remarks>
         /// </summary>
         public const double DefaultVerticalResolution = 96;
 
+        /// <summary>
+        /// The default pixel resolution units.
+        /// <remarks>The default value is <see cref="PixelResolutionUnit.PixelsPerInch"/>.</remarks>
+        /// </summary>
+        public const PixelResolutionUnit DefaultPixelResolutionUnits = PixelResolutionUnit.PixelsPerInch;
+
+        private readonly Dictionary<IImageFormat, IDeepCloneable> formatMetaData = new Dictionary<IImageFormat, IDeepCloneable>();
         private double horizontalResolution;
         private double verticalResolution;
 
@@ -36,6 +42,7 @@ namespace SixLabors.ImageSharp.MetaData
         {
             this.horizontalResolution = DefaultHorizontalResolution;
             this.verticalResolution = DefaultVerticalResolution;
+            this.ResolutionUnits = DefaultPixelResolutionUnits;
         }
 
         /// <summary>
@@ -45,26 +52,24 @@ namespace SixLabors.ImageSharp.MetaData
         /// <param name="other">
         /// The other <see cref="ImageMetaData"/> to create this instance from.
         /// </param>
-        internal ImageMetaData(ImageMetaData other)
+        private ImageMetaData(ImageMetaData other)
         {
-            DebugGuard.NotNull(other, nameof(other));
-
             this.HorizontalResolution = other.HorizontalResolution;
             this.VerticalResolution = other.VerticalResolution;
-            this.RepeatCount = other.RepeatCount;
+            this.ResolutionUnits = other.ResolutionUnits;
+
+            foreach (KeyValuePair<IImageFormat, IDeepCloneable> meta in other.formatMetaData)
+            {
+                this.formatMetaData.Add(meta.Key, meta.Value.DeepClone());
+            }
 
             foreach (ImageProperty property in other.Properties)
             {
-                this.Properties.Add(new ImageProperty(property));
+                this.Properties.Add(property);
             }
 
-            this.ExifProfile = other.ExifProfile != null
-                ? new ExifProfile(other.ExifProfile)
-                : null;
-
-            this.IccProfile = other.IccProfile != null
-                ? new IccProfile(other.IccProfile)
-                : null;
+            this.ExifProfile = other.ExifProfile?.DeepClone();
+            this.IccProfile = other.IccProfile?.DeepClone();
         }
 
         /// <summary>
@@ -104,6 +109,15 @@ namespace SixLabors.ImageSharp.MetaData
         }
 
         /// <summary>
+        /// Gets or sets unit of measure used when reporting resolution.
+        ///  00 : No units; width:height pixel aspect ratio = Ydensity:Xdensity
+        ///  01 : Pixels per inch (2.54 cm)
+        ///  02 : Pixels per centimeter
+        ///  03 : Pixels per meter
+        /// </summary>
+        public PixelResolutionUnit ResolutionUnits { get; set; }
+
+        /// <summary>
         /// Gets or sets the Exif profile.
         /// </summary>
         public ExifProfile ExifProfile { get; set; }
@@ -116,30 +130,58 @@ namespace SixLabors.ImageSharp.MetaData
         /// <summary>
         /// Gets the list of properties for storing meta information about this image.
         /// </summary>
-        /// <value>A list of image properties.</value>
         public IList<ImageProperty> Properties { get; } = new List<ImageProperty>();
 
         /// <summary>
-        /// Gets or sets the number of times any animation is repeated.
-        /// <remarks>0 means to repeat indefinitely.</remarks>
+        /// Gets the metadata value associated with the specified key.
         /// </summary>
-        public ushort RepeatCount { get; set; }
+        /// <typeparam name="TFormatMetaData">The type of metadata.</typeparam>
+        /// <param name="key">The key of the value to get.</param>
+        /// <returns>
+        /// The <typeparamref name="TFormatMetaData"/>.
+        /// </returns>
+        public TFormatMetaData GetFormatMetaData<TFormatMetaData>(IImageFormat<TFormatMetaData> key)
+             where TFormatMetaData : class, IDeepCloneable
+        {
+            if (this.formatMetaData.TryGetValue(key, out IDeepCloneable meta))
+            {
+                return (TFormatMetaData)meta;
+            }
+
+            TFormatMetaData newMeta = key.CreateDefaultFormatMetaData();
+            this.formatMetaData[key] = newMeta;
+            return newMeta;
+        }
+
+        /// <inheritdoc/>
+        public ImageMetaData DeepClone() => new ImageMetaData(this);
 
         /// <summary>
-        /// Clones this into a new instance
+        /// Looks up a property with the provided name.
         /// </summary>
-        /// <returns>The cloned metadata instance</returns>
-        public ImageMetaData Clone()
+        /// <param name="name">The name of the property to lookup.</param>
+        /// <param name="result">The property, if found, with the provided name.</param>
+        /// <returns>Whether the property was found.</returns>
+        internal bool TryGetProperty(string name, out ImageProperty result)
         {
-            return new ImageMetaData(this);
+            foreach (ImageProperty property in this.Properties)
+            {
+                if (property.Name == name)
+                {
+                    result = property;
+
+                    return true;
+                }
+            }
+
+            result = default;
+
+            return false;
         }
 
         /// <summary>
         /// Synchronizes the profiles with the current meta data.
         /// </summary>
-        internal void SyncProfiles()
-        {
-            this.ExifProfile?.Sync(this);
-        }
+        internal void SyncProfiles() => this.ExifProfile?.Sync(this);
     }
 }

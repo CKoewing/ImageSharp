@@ -2,22 +2,23 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+#if !NETSTANDARD1_1
 using SixLabors.ImageSharp.IO;
-using SixLabors.ImageSharp.Memory;
+#endif
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Memory;
 
 namespace SixLabors.ImageSharp
 {
     /// <summary>
-    /// Provides initialization code which allows extending the library.
+    /// Provides configuration code which allows altering default behaviour or extending the library.
     /// </summary>
     public sealed class Configuration
     {
@@ -25,6 +26,8 @@ namespace SixLabors.ImageSharp
         /// A lazily initialized configuration default instance.
         /// </summary>
         private static readonly Lazy<Configuration> Lazy = new Lazy<Configuration>(CreateDefaultInstance);
+
+        private int maxDegreeOfParallelism = Environment.ProcessorCount;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Configuration" /> class.
@@ -54,9 +57,23 @@ namespace SixLabors.ImageSharp
         public static Configuration Default { get; } = Lazy.Value;
 
         /// <summary>
-        /// Gets the global parallel options for processing tasks in parallel.
+        /// Gets or sets the maximum number of concurrent tasks enabled in ImageSharp algorithms
+        /// configured with this <see cref="Configuration"/> instance.
+        /// Initialized with <see cref="Environment.ProcessorCount"/> by default.
         /// </summary>
-        public ParallelOptions ParallelOptions { get; private set; } = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+        public int MaxDegreeOfParallelism
+        {
+            get => this.maxDegreeOfParallelism;
+            set
+            {
+                if (value <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(this.MaxDegreeOfParallelism));
+                }
+
+                this.maxDegreeOfParallelism = value;
+            }
+        }
 
         /// <summary>
         /// Gets the currently registered <see cref="IImageFormat"/>s.
@@ -74,9 +91,9 @@ namespace SixLabors.ImageSharp
         public ImageFormatManager ImageFormatsManager { get; set; } = new ImageFormatManager();
 
         /// <summary>
-        /// Gets or sets the <see cref="MemoryManager"/> that is currently in use.
+        /// Gets or sets the <see cref="MemoryAllocator"/> that is currently in use.
         /// </summary>
-        public MemoryManager MemoryManager { get; set; } = ArrayPoolMemoryManager.CreateDefault();
+        public MemoryAllocator MemoryAllocator { get; set; } = ArrayPoolMemoryAllocator.CreateDefault();
 
         /// <summary>
         /// Gets the maximum header size of all the formats.
@@ -109,13 +126,13 @@ namespace SixLabors.ImageSharp
         /// Creates a shallow copy of the <see cref="Configuration"/>
         /// </summary>
         /// <returns>A new configuration instance</returns>
-        public Configuration ShallowCopy()
+        public Configuration Clone()
         {
             return new Configuration
             {
-                ParallelOptions = this.ParallelOptions,
+                MaxDegreeOfParallelism = this.MaxDegreeOfParallelism,
                 ImageFormatsManager = this.ImageFormatsManager,
-                MemoryManager = this.MemoryManager,
+                MemoryAllocator = this.MemoryAllocator,
                 ImageOperationsProvider = this.ImageOperationsProvider,
                 ReadOrigin = this.ReadOrigin,
 

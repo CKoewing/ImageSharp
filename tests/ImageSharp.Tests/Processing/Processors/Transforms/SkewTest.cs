@@ -1,17 +1,17 @@
 ﻿// Copyright (c) Six Labors and contributors.
 // Licensed under the Apache License, Version 2.0.
 
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
 using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Reflection;
-
-    using SixLabors.ImageSharp.Processing;
-
     public class SkewTest : FileTestBase
     {
         public static readonly TheoryData<float, float> SkewValues
@@ -73,9 +73,9 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
         {
             PropertyInfo property = typeof(KnownResamplers).GetTypeInfo().GetProperty(name);
 
-            if (property == null)
+            if (property is null)
             {
-                throw new Exception("Invalid property name!");
+                throw new Exception($"No resampler named '{name}");
             }
 
             return (IResampler)property.GetValue(null);

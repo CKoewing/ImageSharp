@@ -4,7 +4,7 @@
 using System;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace SixLabors.ImageSharp.Processing.Processors
+namespace SixLabors.ImageSharp.Processing.Processors.Dithering
 {
     /// <summary>
     /// Represents a composite pair of pixels. Used for caching color distance lookups.

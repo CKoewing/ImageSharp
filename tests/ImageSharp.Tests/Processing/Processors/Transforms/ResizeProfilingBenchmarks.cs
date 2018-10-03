@@ -4,10 +4,12 @@
 using System;
 using System.IO;
 using System.Text;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors;
-using SixLabors.Primitives;
 
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
+
+using SixLabors.Primitives;
 using Xunit.Abstractions;
 
 namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
@@ -42,7 +44,7 @@ namespace SixLabors.ImageSharp.Tests.Processing.Processors.Transforms
             var size = new Size(500, 500);
             var proc = new ResizeProcessor<Rgba32>(KnownResamplers.Bicubic, 200, 200, size);
 
-            WeightsBuffer weights = proc.PrecomputeWeights(Configuration.Default.MemoryManager, proc.Width, size.Width);
+            WeightsBuffer weights = proc.PrecomputeWeights(Configuration.Default.MemoryAllocator, proc.Width, size.Width);
 
             var bld = new StringBuilder();
 

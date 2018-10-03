@@ -1,8 +1,9 @@
-﻿namespace SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison
-{
-    using SixLabors.Primitives;
+﻿using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.Primitives;
 
-    public struct PixelDifference
+namespace SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison
+{
+    public readonly struct PixelDifference
     {
         public PixelDifference(
             Point position,
@@ -18,12 +19,12 @@
             this.AlphaDifference = alphaDifference;
         }
 
-        public PixelDifference(Point position, Rgba32 expected, Rgba32 actual)
+        public PixelDifference(Point position, Rgba64 expected, Rgba64 actual)
             : this(position,
-                (int)actual.R - (int)expected.R,
-                (int)actual.G - (int)expected.G,
-                (int)actual.B - (int)expected.B,
-                (int)actual.A - (int)expected.A)
+                actual.R - expected.R,
+                actual.G - expected.G,
+                actual.B - expected.B,
+                actual.A - expected.A)
         {
         }
 

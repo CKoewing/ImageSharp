@@ -1,8 +1,5 @@
-﻿// Copyright (c) Six Labors and contributors.
+﻿// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
-
-using SixLabors.ImageSharp.MetaData.Profiles.Exif;
-using SixLabors.ImageSharp.Primitives;
 
 using Xunit;
 
@@ -92,7 +89,7 @@ namespace SixLabors.ImageSharp.Tests
         }
 
         [Fact]
-        public void ToStringRepresention()
+        public void ToStringRepresentation()
         {
             var rational = new Rational(0, 0);
             Assert.Equal("[ Indeterminate ]", rational.ToString());

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System.Numerics;
@@ -7,6 +7,7 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.PixelFormats
 {
+    [Trait("Category", "PixelFormats")]
     public class Rg32Tests
     {
         [Fact]
@@ -15,10 +16,10 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
             float x = 0xb6dc;
             float y = 0xA59f;
             Assert.Equal(0xa59fb6dc, new Rg32(x / 0xffff, y / 0xffff).PackedValue);
-            Assert.Equal((uint)6554, new Rg32(0.1f, -0.3f).PackedValue);
+            Assert.Equal(6554U, new Rg32(0.1f, -0.3f).PackedValue);
 
             // Test the limits.
-            Assert.Equal((uint)0x0, new Rg32(Vector2.Zero).PackedValue);
+            Assert.Equal(0x0U, new Rg32(Vector2.Zero).PackedValue);
             Assert.Equal(0xFFFFFFFF, new Rg32(Vector2.One).PackedValue);
         }
 
@@ -46,7 +47,7 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
-        public void Rg32_PackFromScaledVector4()
+        public void Rg32_FromScaledVector4()
         {
             // arrange
             var rg32 = new Rg32(Vector2.One);
@@ -55,7 +56,7 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
 
             // act
             Vector4 scaled = rg32.ToScaledVector4();
-            pixel.PackFromScaledVector4(scaled);
+            pixel.FromScaledVector4(scaled);
             uint actual = pixel.PackedValue;
 
             // assert
@@ -63,102 +64,24 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
+        public void Rg32_FromBgra5551()
+        {
+            // arrange
+            var rg32 = new Rg32(Vector2.One);
+            uint expected = 0xFFFFFFFF;
+
+            // act
+            rg32.FromBgra5551(new Bgra5551(1.0f, 1.0f, 1.0f, 1.0f));
+
+            // assert
+            Assert.Equal(expected, rg32.PackedValue);
+        }
+
+        [Fact]
         public void Rg32_Clamping()
         {
             Assert.Equal(Vector2.Zero, new Rg32(Vector2.One * -1234.0f).ToVector2());
             Assert.Equal(Vector2.One, new Rg32(Vector2.One * 1234.0f).ToVector2());
-        }
-
-        [Fact]
-        public void Rg32_ToRgb24()
-        {
-            // arrange
-            var rg32 = new Rg32(0.1f, -0.3f);
-            var actual = default(Rgb24);
-            var expected = new Rgb24(25, 0, 0);
-
-            // act
-            rg32.ToRgb24(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Rg32_ToRgba32()
-        {
-            // arrange
-            var rg32 = new Rg32(0.1f, -0.3f);
-            var actual = default(Rgba32);
-            var expected = new Rgba32(25, 0, 0, 255);
-
-            // act
-            rg32.ToRgba32(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Rg32_ToBgr24()
-        {
-            // arrange
-            var rg32 = new Rg32(0.1f, -0.3f);
-            var actual = default(Bgr24);
-            var expected = new Bgr24(25, 0, 0);
-
-            // act
-            rg32.ToBgr24(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Rg32_ToArgb32()
-        {
-            // arrange
-            var rg32 = new Rg32(0.1f, -0.3f);
-            var actual = default(Argb32);
-            var expected = new Argb32(25, 0, 0, 255);
-
-            // act
-            rg32.ToArgb32(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Rg32_PackFromRgb48_ToRgb48()
-        {
-            // arrange
-            var input = default(Rg32);
-            var actual = default(Rgb48);
-            var expected = new Rgb48(65535, 65535, 0);
-
-            // act
-            input.PackFromRgb48(expected);
-            input.ToRgb48(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Rg32_PackFromRgba64_ToRgba64()
-        {
-            // arrange
-            var input = default(Rg32);
-            var actual = default(Rgba64);
-            var expected = new Rgba64(65535, 65535, 0, 65535);
-
-            // act
-            input.PackFromRgba64(expected);
-            input.ToRgba64(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
         }
     }
 }

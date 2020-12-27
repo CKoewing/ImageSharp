@@ -1,4 +1,4 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System.Numerics;
@@ -7,14 +7,46 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.PixelFormats
 {
+    [Trait("Category", "PixelFormats")]
     public class Bgr565Tests
     {
+        /// <summary>
+        /// Tests the equality operators for equality.
+        /// </summary>
+        [Fact]
+        public void AreEqual()
+        {
+            var color1 = new Bgr565(0.0f, 0.0f, 0.0f);
+            var color2 = new Bgr565(new Vector3(0.0f));
+            var color3 = new Bgr565(new Vector3(1.0f, 0.0f, 1.0f));
+            var color4 = new Bgr565(1.0f, 0.0f, 1.0f);
+
+            Assert.Equal(color1, color2);
+            Assert.Equal(color3, color4);
+        }
+
+        /// <summary>
+        /// Tests the equality operators for inequality.
+        /// </summary>
+        [Fact]
+        public void AreNotEqual()
+        {
+            var color1 = new Bgr565(0.0f, 0.0f, 0.0f);
+            var color2 = new Bgr565(new Vector3(1.0f));
+            var color3 = new Bgr565(new Vector3(1.0f, 0.0f, 0.0f));
+            var color4 = new Bgr565(1.0f, 1.0f, 0.0f);
+
+            Assert.NotEqual(color1, color2);
+            Assert.NotEqual(color3, color4);
+        }
+
         [Fact]
         public void Bgr565_PackedValue()
         {
             Assert.Equal(6160, new Bgr565(0.1F, -0.3F, 0.5F).PackedValue);
             Assert.Equal(0x0, new Bgr565(Vector3.Zero).PackedValue);
             Assert.Equal(0xFFFF, new Bgr565(Vector3.One).PackedValue);
+
             // Make sure the swizzle is correct.
             Assert.Equal(0xF800, new Bgr565(Vector3.UnitX).PackedValue);
             Assert.Equal(0x07E0, new Bgr565(Vector3.UnitY).PackedValue);
@@ -48,7 +80,7 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
-        public void Bgr565_PackFromScaledVector4()
+        public void Bgr565_FromScaledVector4()
         {
             // arrange
             Vector4 scaled = new Bgr565(Vector3.One).ToScaledVector4();
@@ -56,7 +88,7 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
             var pixel = default(Bgr565);
 
             // act
-            pixel.PackFromScaledVector4(scaled);
+            pixel.FromScaledVector4(scaled);
             ushort actual = pixel.PackedValue;
 
             // assert
@@ -64,117 +96,158 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
-        public void Bgr565_Clamping()
+        public void Bgr565_FromBgra5551()
         {
-            Assert.Equal(Vector3.Zero, new Bgr565(Vector3.One * -1234F).ToVector3());
-            Assert.Equal(Vector3.One, new Bgr565(Vector3.One * 1234F).ToVector3());
+            // arrange
+            var bgr = default(Bgr565);
+            ushort expected = ushort.MaxValue;
+
+            // act
+            bgr.FromBgra5551(new Bgra5551(1.0f, 1.0f, 1.0f, 1.0f));
+
+            // assert
+            Assert.Equal(expected, bgr.PackedValue);
         }
 
         [Fact]
-        public void Bgr565_ToRgb24()
+        public void Bgr565_FromArgb32()
         {
             // arrange
-            var bgra = new Bgr565(0.1F, -0.3F, 0.5F);
-            var actual = default(Rgb24);
-            var expected = new Rgb24(25, 0, 132);
+            var bgr1 = default(Bgr565);
+            var bgr2 = default(Bgr565);
+            ushort expected1 = ushort.MaxValue;
+            ushort expected2 = ushort.MaxValue;
 
             // act
-            bgra.ToRgb24(ref actual);
+            bgr1.FromArgb32(new Argb32(1.0f, 1.0f, 1.0f, 1.0f));
+            bgr2.FromArgb32(new Argb32(1.0f, 1.0f, 1.0f, 0.0f));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expected1, bgr1.PackedValue);
+            Assert.Equal(expected2, bgr2.PackedValue);
+        }
+
+        [Fact]
+        public void Bgr565_FromRgba32()
+        {
+            // arrange
+            var bgr1 = default(Bgr565);
+            var bgr2 = default(Bgr565);
+            ushort expected1 = ushort.MaxValue;
+            ushort expected2 = ushort.MaxValue;
+
+            // act
+            bgr1.FromRgba32(new Rgba32(1.0f, 1.0f, 1.0f, 1.0f));
+            bgr2.FromRgba32(new Rgba32(1.0f, 1.0f, 1.0f, 0.0f));
+
+            // assert
+            Assert.Equal(expected1, bgr1.PackedValue);
+            Assert.Equal(expected2, bgr2.PackedValue);
         }
 
         [Fact]
         public void Bgr565_ToRgba32()
         {
             // arrange
-            var bgra = new Bgr565(0.1F, -0.3F, 0.5F);
+            var bgra = new Bgr565(Vector3.One);
+            var expected = new Rgba32(Vector4.One);
             var actual = default(Rgba32);
-            var expected = new Rgba32(25, 0, 132, 255);
 
             // act
             bgra.ToRgba32(ref actual);
 
-            // assert
             Assert.Equal(expected, actual);
         }
 
         [Fact]
-        public void Bgr565_ToBgr24()
+        public void Bgra565_FromRgb48()
         {
             // arrange
-            var bgra = new Bgr565(0.1F, -0.3F, 0.5F);
-            var actual = default(Bgr24);
-            var expected = new Bgr24(25, 0, 132);
+            var bgr = default(Bgr565);
+            ushort expectedPackedValue = ushort.MaxValue;
 
             // act
-            bgra.ToBgr24(ref actual);
+            bgr.FromRgb48(new Rgb48(ushort.MaxValue, ushort.MaxValue, ushort.MaxValue));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expectedPackedValue, bgr.PackedValue);
         }
 
         [Fact]
-        public void Bgr565_ToBgra32()
+        public void Bgra565_FromRgba64()
         {
             // arrange
-            var bgra = new Bgr565(0.1F, -0.3F, 0.5F);
-            var actual = default(Bgra32);
-            var expected = new Bgra32(25, 0, 132, 255);
+            var bgr = default(Bgr565);
+            ushort expectedPackedValue = ushort.MaxValue;
 
             // act
-            bgra.ToBgra32(ref actual);
+            bgr.FromRgba64(new Rgba64(ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expectedPackedValue, bgr.PackedValue);
         }
 
         [Fact]
-        public void Bgr565_ToArgb32()
+        public void Bgr565_FromBgr24()
         {
             // arrange
-            var bgra = new Bgr565(0.1F, -0.3F, 0.5F);
-            var actual = default(Argb32);
-            var expected = new Argb32(25, 0, 132, 255);
+            var bgr = default(Bgr565);
+            ushort expected = ushort.MaxValue;
 
             // act
-            bgra.ToArgb32(ref actual);
+            bgr.FromBgr24(new Bgr24(byte.MaxValue, byte.MaxValue, byte.MaxValue));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expected, bgr.PackedValue);
         }
 
         [Fact]
-        public void Bgr565_PackFromRgb48_ToRgb48()
+        public void Bgr565_FromRgb24()
         {
             // arrange
-            var input = default(Bgr565);
-            var actual = default(Rgb48);
-            var expected = new Rgb48(65535, 0, 65535);
+            var bgr = default(Bgr565);
+            ushort expected = ushort.MaxValue;
 
             // act
-            input.PackFromRgb48(expected);
-            input.ToRgb48(ref actual);
+            bgr.FromRgb24(new Rgb24(byte.MaxValue, byte.MaxValue, byte.MaxValue));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expected, bgr.PackedValue);
         }
 
         [Fact]
-        public void Bgr565_PackFromRgba64_ToRgba64()
+        public void Bgr565_FromGrey8()
         {
             // arrange
-            var input = default(Bgr565);
-            var actual = default(Rgba64);
-            var expected = new Rgba64(65535, 0, 65535, 65535);
+            var bgr = default(Bgr565);
+            ushort expected = ushort.MaxValue;
 
             // act
-            input.PackFromRgba64(expected);
-            input.ToRgba64(ref actual);
+            bgr.FromL8(new L8(byte.MaxValue));
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(expected, bgr.PackedValue);
+        }
+
+        [Fact]
+        public void Bgr565_FromGrey16()
+        {
+            // arrange
+            var bgr = default(Bgr565);
+            ushort expected = ushort.MaxValue;
+
+            // act
+            bgr.FromL16(new L16(ushort.MaxValue));
+
+            // assert
+            Assert.Equal(expected, bgr.PackedValue);
+        }
+
+        [Fact]
+        public void Bgr565_Clamping()
+        {
+            Assert.Equal(Vector3.Zero, new Bgr565(Vector3.One * -1234F).ToVector3());
+            Assert.Equal(Vector3.One, new Bgr565(Vector3.One * 1234F).ToVector3());
         }
     }
 }

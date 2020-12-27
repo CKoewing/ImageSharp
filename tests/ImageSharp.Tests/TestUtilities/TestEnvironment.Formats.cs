@@ -1,4 +1,4 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
@@ -8,6 +8,7 @@ using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.Tests.TestUtilities.ReferenceCodecs;
 
 namespace SixLabors.ImageSharp.Tests
@@ -34,8 +35,7 @@ namespace SixLabors.ImageSharp.Tests
         {
             string extension = Path.GetExtension(filePath);
 
-            IImageFormat format = Configuration.ImageFormatsManager.FindFormatByFileExtension(extension);
-            return format;
+            return Configuration.ImageFormatsManager.FindFormatByFileExtension(extension);
         }
 
         private static void ConfigureCodecs(
@@ -54,8 +54,8 @@ namespace SixLabors.ImageSharp.Tests
         {
             var cfg = new Configuration(
                 new JpegConfigurationModule(),
-                new GifConfigurationModule()
-            );
+                new GifConfigurationModule(),
+                new TgaConfigurationModule());
 
             // Magick codecs should work on all platforms
             IImageEncoder pngEncoder = IsWindows ? (IImageEncoder)SystemDrawingReferenceEncoder.Png : new PngEncoder();
@@ -69,7 +69,7 @@ namespace SixLabors.ImageSharp.Tests
 
             cfg.ConfigureCodecs(
                 BmpFormat.Instance,
-                SystemDrawingReferenceDecoder.Instance,
+                IsWindows ? (IImageDecoder)SystemDrawingReferenceDecoder.Instance : MagickReferenceDecoder.Instance,
                 bmpEncoder,
                 new BmpImageFormatDetector());
 

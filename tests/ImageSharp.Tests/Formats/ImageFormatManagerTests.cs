@@ -1,4 +1,4 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
@@ -10,15 +10,16 @@ using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
-
-namespace SixLabors.ImageSharp.Tests
+namespace SixLabors.ImageSharp.Tests.Formats
 {
     public class ImageFormatManagerTests
     {
         public ImageFormatManager FormatsManagerEmpty { get; }
+
         public ImageFormatManager DefaultFormatsManager { get; }
 
         public ImageFormatManagerTests()
@@ -28,60 +29,39 @@ namespace SixLabors.ImageSharp.Tests
         }
 
         [Fact]
-        public void IfAutoloadWellKnownFormatsIsTrueAllFormatsAreLoaded()
+        public void IfAutoLoadWellKnownFormatsIsTrueAllFormatsAreLoaded()
         {
             Assert.Equal(1, this.DefaultFormatsManager.ImageEncoders.Select(item => item.Value).OfType<PngEncoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageEncoders.Select(item => item.Value).OfType<BmpEncoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageEncoders.Select(item => item.Value).OfType<JpegEncoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageEncoders.Select(item => item.Value).OfType<GifEncoder>().Count());
+            Assert.Equal(1, this.DefaultFormatsManager.ImageEncoders.Select(item => item.Value).OfType<TgaEncoder>().Count());
 
             Assert.Equal(1, this.DefaultFormatsManager.ImageDecoders.Select(item => item.Value).OfType<PngDecoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageDecoders.Select(item => item.Value).OfType<BmpDecoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageDecoders.Select(item => item.Value).OfType<JpegDecoder>().Count());
             Assert.Equal(1, this.DefaultFormatsManager.ImageDecoders.Select(item => item.Value).OfType<BmpDecoder>().Count());
+            Assert.Equal(1, this.DefaultFormatsManager.ImageDecoders.Select(item => item.Value).OfType<TgaDecoder>().Count());
         }
 
         [Fact]
-        public void AddImageFormatDetectorNullthrows()
-        {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.AddImageFormatDetector(null);
-            });
-        }
+        public void AddImageFormatDetectorNullThrows()
+            => Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.AddImageFormatDetector(null));
 
         [Fact]
         public void RegisterNullMimeTypeEncoder()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetEncoder(null, new Mock<IImageEncoder>().Object);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetEncoder(BmpFormat.Instance, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetEncoder(null, null);
-            });
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetEncoder(null, new Mock<IImageEncoder>().Object));
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetEncoder(BmpFormat.Instance, null));
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetEncoder(null, null));
         }
 
         [Fact]
         public void RegisterNullSetDecoder()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetDecoder(null, new Mock<IImageDecoder>().Object);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetDecoder(BmpFormat.Instance, null);
-            });
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                this.DefaultFormatsManager.SetDecoder(null, null);
-            });
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetDecoder(null, new Mock<IImageDecoder>().Object));
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetDecoder(BmpFormat.Instance, null));
+            Assert.Throws<ArgumentNullException>(() => this.DefaultFormatsManager.SetDecoder(null, null));
         }
 
         [Fact]
@@ -130,11 +110,9 @@ namespace SixLabors.ImageSharp.Tests
             byte[] jpegImage;
             using (var buffer = new MemoryStream())
             {
-                using (var image = new Image<Rgba32>(100, 100))
-                {
-                    image.SaveAsJpeg(buffer);
-                    jpegImage = buffer.ToArray();
-                }
+                using var image = new Image<Rgba32>(100, 100);
+                image.SaveAsJpeg(buffer);
+                jpegImage = buffer.ToArray();
             }
 
             byte[] invalidImage = { 1, 2, 3 };

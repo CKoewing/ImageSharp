@@ -1,12 +1,15 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.Memory;
+using SixLabors.ImageSharp.IO;
+using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Tests.Formats.Jpg.Utils;
 using SixLabors.ImageSharp.Tests.TestUtilities.ImageComparison;
@@ -18,15 +21,17 @@ using Xunit.Abstractions;
 namespace SixLabors.ImageSharp.Tests.Formats.Jpg
 {
     // TODO: Scatter test cases into multiple test classes
+    [Trait("Format", "Jpg")]
     public partial class JpegDecoderTests
     {
         public const PixelTypes CommonNonDefaultPixelTypes = PixelTypes.Rgba32 | PixelTypes.Argb32 | PixelTypes.RgbaVector;
 
         private const float BaselineTolerance = 0.001F / 100;
+
         private const float ProgressiveTolerance = 0.2F / 100;
 
-        private ImageComparer GetImageComparer<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+        private static ImageComparer GetImageComparer<TPixel>(TestImageProvider<TPixel> provider)
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             string file = provider.SourceFileOrDescription;
 
@@ -49,7 +54,8 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
                     TestImages.Jpeg.Issues.NoEoiProgressive517,
                     TestImages.Jpeg.Issues.BadRstProgressive518,
                     TestImages.Jpeg.Issues.InvalidEOI695,
-                    TestImages.Jpeg.Issues.ExifResizeOutOfRange696
+                    TestImages.Jpeg.Issues.ExifResizeOutOfRange696,
+                    TestImages.Jpeg.Issues.ExifGetString750Transform
                 };
 
             return !TestEnvironment.Is64BitProcess && largeImagesToSkipOn32Bit.Contains(provider.SourceFileOrDescription);
@@ -68,16 +74,15 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         public void ParseStream_BasicPropertiesAreCorrect()
         {
             byte[] bytes = TestFile.Create(TestImages.Jpeg.Progressive.Progress).Bytes;
-            using (var ms = new MemoryStream(bytes))
-            {
-                var decoder = new JpegDecoderCore(Configuration.Default, new JpegDecoder());
-                decoder.ParseStream(ms);
+            using var ms = new MemoryStream(bytes);
+            using var bufferedStream = new BufferedReadStream(Configuration.Default, ms);
+            var decoder = new JpegDecoderCore(Configuration.Default, new JpegDecoder());
+            decoder.ParseStream(bufferedStream);
 
-                // I don't know why these numbers are different. All I know is that the decoder works
-                // and spectral data is exactly correct also.
-                // VerifyJpeg.VerifyComponentSizes3(decoder.Frame.Components, 43, 61, 22, 31, 22, 31);
-                VerifyJpeg.VerifyComponentSizes3(decoder.Frame.Components, 44, 62, 22, 31, 22, 31);
-            }
+            // I don't know why these numbers are different. All I know is that the decoder works
+            // and spectral data is exactly correct also.
+            // VerifyJpeg.VerifyComponentSizes3(decoder.Frame.Components, 43, 61, 22, 31, 22, 31);
+            VerifyJpeg.VerifyComponentSizes3(decoder.Frame.Components, 44, 62, 22, 31, 22, 31);
         }
 
         public const string DecodeBaselineJpegOutputName = "DecodeBaselineJpeg";
@@ -85,54 +90,108 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         [Theory]
         [WithFile(TestImages.Jpeg.Baseline.Calliphora, CommonNonDefaultPixelTypes)]
         public void JpegDecoder_IsNotBoundToSinglePixelType<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
-            if (SkipTest(provider))
-            {
-                return;
-            }
+            using Image<TPixel> image = provider.GetImage(JpegDecoder);
+            image.DebugSave(provider);
 
-            // For 32 bit test enviroments:
-            provider.Configuration.MemoryAllocator = ArrayPoolMemoryAllocator.CreateWithModeratePooling();
-
-            using (Image<TPixel> image = provider.GetImage(JpegDecoder))
-            {
-                image.DebugSave(provider);
-
-                provider.Utility.TestName = DecodeBaselineJpegOutputName;
-                image.CompareToReferenceOutput(ImageComparer.Tolerant(BaselineTolerance), provider, appendPixelTypeToFileName: false);
-            }
-
-            provider.Configuration.MemoryAllocator.ReleaseRetainedResources();
-        }
-
-        private string GetDifferenceInPercentageString<TPixel>(Image<TPixel> image, TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
-        {
-            var reportingComparer = ImageComparer.Tolerant(0, 0);
-
-            ImageSimilarityReport report = image.GetReferenceOutputSimilarityReports(
+            provider.Utility.TestName = DecodeBaselineJpegOutputName;
+            image.CompareToReferenceOutput(
+                ImageComparer.Tolerant(BaselineTolerance),
                 provider,
-                reportingComparer,
-                appendPixelTypeToFileName: false
-                ).SingleOrDefault();
+                appendPixelTypeToFileName: false);
+        }
 
-            if (report?.TotalNormalizedDifference != null)
+        [Theory]
+        [WithFile(TestImages.Jpeg.Baseline.Floorplan, PixelTypes.Rgba32)]
+        [WithFile(TestImages.Jpeg.Progressive.Festzug, PixelTypes.Rgba32)]
+        public void Decode_DegenerateMemoryRequest_ShouldTranslateTo_ImageFormatException<TPixel>(TestImageProvider<TPixel> provider)
+            where TPixel : unmanaged, IPixel<TPixel>
+        {
+            provider.LimitAllocatorBufferCapacity().InBytesSqrt(10);
+            InvalidImageContentException ex = Assert.Throws<InvalidImageContentException>(() => provider.GetImage(JpegDecoder));
+            this.Output.WriteLine(ex.Message);
+            Assert.IsType<InvalidMemoryOperationException>(ex.InnerException);
+        }
+
+        [Theory]
+        [WithFile(TestImages.Jpeg.Baseline.Floorplan, PixelTypes.Rgba32)]
+        [WithFile(TestImages.Jpeg.Progressive.Festzug, PixelTypes.Rgba32)]
+        public async Task DecodeAsnc_DegenerateMemoryRequest_ShouldTranslateTo_ImageFormatException<TPixel>(TestImageProvider<TPixel> provider)
+            where TPixel : unmanaged, IPixel<TPixel>
+        {
+            provider.LimitAllocatorBufferCapacity().InBytesSqrt(10);
+            InvalidImageContentException ex = await Assert.ThrowsAsync<InvalidImageContentException>(() => provider.GetImageAsync(JpegDecoder));
+            this.Output.WriteLine(ex.Message);
+            Assert.IsType<InvalidMemoryOperationException>(ex.InnerException);
+        }
+
+        [Theory]
+        [InlineData(TestImages.Jpeg.Baseline.Jpeg420Small, 0)]
+        [InlineData(TestImages.Jpeg.Issues.ExifGetString750Transform, 1)]
+        [InlineData(TestImages.Jpeg.Issues.ExifGetString750Transform, 15)]
+        [InlineData(TestImages.Jpeg.Issues.ExifGetString750Transform, 30)]
+        [InlineData(TestImages.Jpeg.Issues.BadRstProgressive518, 1)]
+        [InlineData(TestImages.Jpeg.Issues.BadRstProgressive518, 15)]
+        [InlineData(TestImages.Jpeg.Issues.BadRstProgressive518, 30)]
+        public async Task Decode_IsCancellable(string fileName, int cancellationDelayMs)
+        {
+            // Decoding these huge files took 300ms on i7-8650U in 2020. 30ms should be safe for cancellation delay.
+            string hugeFile = Path.Combine(
+                TestEnvironment.InputImagesDirectoryFullPath,
+                fileName);
+
+            const int NumberOfRuns = 5;
+
+            for (int i = 0; i < NumberOfRuns; i++)
             {
-                return report.DifferencePercentageString;
+                var cts = new CancellationTokenSource();
+                if (cancellationDelayMs == 0)
+                {
+                    cts.Cancel();
+                }
+                else
+                {
+                    cts.CancelAfter(cancellationDelayMs);
+                }
+
+                try
+                {
+                    using var image = await Image.LoadAsync(hugeFile, cts.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Succesfully observed a cancellation
+                    return;
+                }
             }
 
-            return "0%";
+            throw new Exception($"No cancellation happened out of {NumberOfRuns} runs!");
         }
-        
+
+        [Theory(Skip = "Identify is too fast, doesn't work reliably.")]
+        [InlineData(TestImages.Jpeg.Baseline.Exif)]
+        [InlineData(TestImages.Jpeg.Progressive.Bad.ExifUndefType)]
+        public async Task Identify_IsCancellable(string fileName)
+        {
+            string file = Path.Combine(
+                TestEnvironment.InputImagesDirectoryFullPath,
+                fileName);
+
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromTicks(1));
+            await Assert.ThrowsAsync<TaskCanceledException>(() => Image.IdentifyAsync(file, cts.Token));
+        }
+
         // DEBUG ONLY!
         // The PDF.js output should be saved by "tests\ImageSharp.Tests\Formats\Jpg\pdfjs\jpeg-converter.htm"
         // into "\tests\Images\ActualOutput\JpegDecoderTests\"
-        //[Theory]
-        //[WithFile(TestImages.Jpeg.Progressive.Progress, PixelTypes.Rgba32, "PdfJsOriginal_progress.png")]
-        public void ValidateProgressivePdfJsOutput<TPixel>(TestImageProvider<TPixel> provider,
+        // [Theory]
+        // [WithFile(TestImages.Jpeg.Progressive.Progress, PixelTypes.Rgba32, "PdfJsOriginal_progress.png")]
+        public void ValidateProgressivePdfJsOutput<TPixel>(
+            TestImageProvider<TPixel> provider,
             string pdfJsOriginalResultImage)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             // tests\ImageSharp.Tests\Formats\Jpg\pdfjs\jpeg-converter.htm
             string pdfJsOriginalResultPath = Path.Combine(
@@ -146,8 +205,8 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
             var comparer = ImageComparer.Tolerant(0, 0);
 
             using (Image<TPixel> expectedImage = provider.GetReferenceOutputImage<TPixel>(appendPixelTypeToFileName: false))
-            using (var pdfJsOriginalResult = Image.Load(pdfJsOriginalResultPath))
-            using (var pdfJsPortResult = Image.Load(sourceBytes, JpegDecoder))
+            using (var pdfJsOriginalResult = Image.Load<Rgba32>(pdfJsOriginalResultPath))
+            using (var pdfJsPortResult = Image.Load<Rgba32>(sourceBytes, JpegDecoder))
             {
                 ImageSimilarityReport originalReport = comparer.CompareImagesOrFrames(expectedImage, pdfJsOriginalResult);
                 ImageSimilarityReport portReport = comparer.CompareImagesOrFrames(expectedImage, pdfJsPortResult);

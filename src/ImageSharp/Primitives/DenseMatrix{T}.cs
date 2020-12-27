@@ -1,11 +1,11 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace SixLabors.ImageSharp.Primitives
+namespace SixLabors.ImageSharp
 {
     /// <summary>
     /// Represents a dense matrix with arbitrary elements.
@@ -30,6 +30,11 @@ namespace SixLabors.ImageSharp.Primitives
         /// Gets the number of rows in the dense matrix.
         /// </summary>
         public readonly int Rows;
+
+        /// <summary>
+        /// Gets the size of the dense matrix.
+        /// </summary>
+        public readonly Size Size;
 
         /// <summary>
         /// Gets the number of items in the array.
@@ -57,6 +62,7 @@ namespace SixLabors.ImageSharp.Primitives
 
             this.Rows = rows;
             this.Columns = columns;
+            this.Size = new Size(columns, rows);
             this.Count = columns * rows;
             this.Data = new T[this.Columns * this.Rows];
         }
@@ -76,6 +82,7 @@ namespace SixLabors.ImageSharp.Primitives
 
             this.Rows = rows;
             this.Columns = columns;
+            this.Size = new Size(columns, rows);
             this.Count = this.Columns * this.Rows;
             this.Data = new T[this.Columns * this.Rows];
 
@@ -90,9 +97,9 @@ namespace SixLabors.ImageSharp.Primitives
         }
 
         /// <summary>
-        /// Gets a Span wrapping the Data.
+        /// Gets a span wrapping the <see cref="Data"/>.
         /// </summary>
-        internal Span<T> Span => new Span<T>(this.Data);
+        public Span<T> Span => new Span<T>(this.Data);
 
         /// <summary>
         /// Gets or sets the item at the specified position.
@@ -129,7 +136,7 @@ namespace SixLabors.ImageSharp.Primitives
         /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #pragma warning disable SA1008 // Opening parenthesis should be spaced correctly
-        public static implicit operator T[,] (DenseMatrix<T> data)
+        public static implicit operator T[,](in DenseMatrix<T> data)
 #pragma warning restore SA1008 // Opening parenthesis should be spaced correctly
         {
             var result = new T[data.Rows, data.Columns];
@@ -140,6 +147,45 @@ namespace SixLabors.ImageSharp.Primitives
                 {
                     ref T value = ref result[y, x];
                     value = data[y, x];
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Compares the two <see cref="DenseMatrix{T}"/> instances to determine whether they are unequal.
+        /// </summary>
+        /// <param name="left">The first source instance.</param>
+        /// <param name="right">The second source instance.</param>
+        /// <returns>The <see cref="bool"/>.</returns>
+        public static bool operator ==(DenseMatrix<T> left, DenseMatrix<T> right)
+            => left.Equals(right);
+
+        /// <summary>
+        /// Compares the two <see cref="DenseMatrix{T}"/> instances to determine whether they are equal.
+        /// </summary>
+        /// <param name="left">The first source instance.</param>
+        /// <param name="right">The second source instance.</param>
+        /// <returns>The <see cref="bool"/>.</returns>
+        public static bool operator !=(DenseMatrix<T> left, DenseMatrix<T> right)
+            => !(left == right);
+
+        /// <summary>
+        /// Transposes the rows and columns of the dense matrix.
+        /// </summary>
+        /// <returns>The <see cref="DenseMatrix{T}"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DenseMatrix<T> Transpose()
+        {
+            var result = new DenseMatrix<T>(this.Rows, this.Columns);
+
+            for (int y = 0; y < this.Rows; y++)
+            {
+                for (int x = 0; x < this.Columns; x++)
+                {
+                    ref T value = ref result[x, y];
+                    value = this[y, x];
                 }
             }
 
@@ -182,15 +228,32 @@ namespace SixLabors.ImageSharp.Primitives
         }
 
         /// <inheritdoc/>
+        public override bool Equals(object obj)
+            => obj is DenseMatrix<T> other && this.Equals(other);
+
+        /// <inheritdoc/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(DenseMatrix<T> other) =>
-            this.Columns == other.Columns &&
-            this.Rows == other.Rows &&
-            this.Span.SequenceEqual(other.Span);
+            this.Columns == other.Columns
+            && this.Rows == other.Rows
+            && this.Span.SequenceEqual(other.Span);
 
         /// <inheritdoc/>
-        public override bool Equals(object obj) => obj is DenseMatrix<T> other && this.Equals(other);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int GetHashCode()
+        {
+            HashCode code = default;
 
-        /// <inheritdoc/>
-        public override int GetHashCode() => this.Data.GetHashCode();
+            code.Add(this.Columns);
+            code.Add(this.Rows);
+
+            Span<T> span = this.Span;
+            for (int i = 0; i < span.Length; i++)
+            {
+                code.Add(span[i]);
+            }
+
+            return code.ToHashCode();
+        }
     }
 }

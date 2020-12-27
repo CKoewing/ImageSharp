@@ -1,52 +1,40 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFrameworks>net462;net471;netcoreapp2.1</TargetFrameworks>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <LangVersion>7.3</LangVersion>
-    <DebugType Condition="$(codecov) != ''">full</DebugType>
-    <DebugType Condition="$(codecov) == ''">portable</DebugType>
+    <TargetFrameworks>netcoreapp3.1;netcoreapp2.1;net472</TargetFrameworks>
     <DebugSymbols>True</DebugSymbols>
-    <RootNamespace>SixLabors.ImageSharp.Tests</RootNamespace>
     <AssemblyName>SixLabors.ImageSharp.Tests</AssemblyName>
     <Platforms>AnyCPU;x64;x86</Platforms>
+    <RootNamespace>SixLabors.ImageSharp.Tests</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsAsErrors />
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsAsErrors />
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsAsErrors />
-  </PropertyGroup>
+
   <ItemGroup>
-    <None Include="PixelFormats\PixelOperationsTests.Blender.cs" />
+    <InternalsVisibleTo Include="ImageSharp.Tests.ProfilingSandbox" Key="$(SixLaborsPublicKey)" />
   </ItemGroup>
-  
+
   <ItemGroup>
-    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="7.5.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-    <PackageReference Include="System.Drawing.Common" Version="4.5.0" />
-    <PackageReference Include="xunit" Version="2.3.1" />
-    <PackageReference Include="xunit.runner.console" Version="2.3.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.7.2" />
-    <PackageReference Include="xunit" Version="2.3.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
-    <PackageReference Include="Moq" Version="4.8.3" />
+    <None Include="PixelFormats\PixelOperations\Generated\PixelOperationsTests.Specialized.Generated.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>PixelOperationsTests.Specialized.Generated.tt</DependentUpon>
+    </None>
   </ItemGroup>
+
   <ItemGroup>
-    <AdditionalFiles Include="..\..\stylecop.json" />
-    <ProjectReference Include="..\..\src\ImageSharp.Drawing\ImageSharp.Drawing.csproj" />
-    <ProjectReference Include="..\..\src\ImageSharp\ImageSharp.csproj" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" />
+    <PackageReference Include="Microsoft.DotNet.RemoteExecutor" />
+    <PackageReference Include="Microsoft.DotNet.XUnitExtensions" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="System.Drawing.Common" />
   </ItemGroup>
+
   <ItemGroup>
-    <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
-  </ItemGroup>
-  <ItemGroup>
+    <None Update="PixelFormats\PixelOperations\Generated\PixelOperationsTests.Specialized.Generated.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>PixelOperationsTests.Specialized.Generated.cs</LastGenOutput>
+    </None>
     <None Update="TestFonts\OpenSans-Regular.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -57,4 +45,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="PixelFormats\PixelOperations\Generated\PixelOperationsTests.Specialized.Generated.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>PixelOperationsTests.Specialized.Generated.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
 </Project>
+

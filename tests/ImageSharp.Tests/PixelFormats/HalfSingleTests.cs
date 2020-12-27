@@ -1,4 +1,4 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System.Numerics;
@@ -7,6 +7,7 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.PixelFormats
 {
+    [Trait("Category", "PixelFormats")]
     public class HalfSingleTests
     {
         [Fact]
@@ -41,7 +42,7 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
             // arrange
             var halfSingle = new HalfSingle(-1F);
 
-            // act 
+            // act
             Vector4 actual = halfSingle.ToScaledVector4();
 
             // assert
@@ -52,123 +53,16 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
-        public void HalfSingle_PackFromScaledVector4()
+        public void HalfSingle_FromScaledVector4()
         {
-            // arrange 
+            // arrange
             Vector4 scaled = new HalfSingle(-1F).ToScaledVector4();
             int expected = 48128;
             var halfSingle = default(HalfSingle);
 
             // act
-            halfSingle.PackFromScaledVector4(scaled);
+            halfSingle.FromScaledVector4(scaled);
             ushort actual = halfSingle.PackedValue;
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_ToRgb24()
-        {
-            // arrange
-            var halfVector = new HalfSingle(.5F);
-            var actual = default(Rgb24);
-            var expected = new Rgb24(128, 0, 0);
-
-            // act
-            halfVector.ToRgb24(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_Rgba32()
-        {
-            // arrange
-            var halfVector = new HalfSingle(.5F);
-            var actual = default(Rgba32);
-            var expected = new Rgba32(128, 0, 0, 255);
-
-            // act
-            halfVector.ToRgba32(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_ToBgr24()
-        {
-            // arrange
-            var halfVector = new HalfSingle(.5F);
-            var actual = default(Bgr24);
-            var expected = new Bgr24(128, 0, 0);
-
-            // act
-            halfVector.ToBgr24(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_Bgra32()
-        {
-            // arrange
-            var halfVector = new HalfSingle(.5F);
-            var actual = default(Bgra32);
-            var expected = new Bgra32(128, 0, 0, 255);
-
-            // act
-            halfVector.ToBgra32(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_Argb32()
-        {
-            // arrange
-            var halfVector = new HalfSingle(.5F);
-            var actual = default(Argb32);
-            var expected = new Argb32(128, 0, 0, 255);
-
-            // act
-            halfVector.ToArgb32(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_PackFromRgb48_ToRgb48()
-        {
-            // arrange
-            var input = default(HalfSingle);
-            var actual = default(Rgb48);
-            var expected = new Rgb48(65535, 0, 0);
-
-            // act
-            input.PackFromRgb48(expected);
-            input.ToRgb48(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void HalfSingle_PackFromRgba64_ToRgba64()
-        {
-            // arrange
-            var input = default(HalfSingle);
-            var actual = default(Rgba64);
-            var expected = new Rgba64(65535, 0, 0, 65535);
-
-            // act
-            input.PackFromRgba64(expected);
-            input.ToRgba64(ref actual);
 
             // assert
             Assert.Equal(expected, actual);

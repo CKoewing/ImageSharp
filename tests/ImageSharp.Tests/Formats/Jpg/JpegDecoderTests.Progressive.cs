@@ -1,12 +1,15 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
+using Microsoft.DotNet.RemoteExecutor;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Tests.TestUtilities;
 using Xunit;
-// ReSharper disable InconsistentNaming
 
+// ReSharper disable InconsistentNaming
 namespace SixLabors.ImageSharp.Tests.Formats.Jpg
 {
+    [Trait("Format", "Jpg")]
     public partial class JpegDecoderTests
     {
         public const string DecodeProgressiveJpegOutputName = "DecodeProgressiveJpeg";
@@ -14,24 +17,45 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         [Theory]
         [WithFileCollection(nameof(ProgressiveTestJpegs), PixelTypes.Rgba32)]
         public void DecodeProgressiveJpeg<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
-            if (SkipTest(provider))
-            {
-                // skipping to avoid OutOfMemoryException on CI
-                return;
-            }
+            using Image<TPixel> image = provider.GetImage(JpegDecoder);
+            image.DebugSave(provider);
 
-            using (Image<TPixel> image = provider.GetImage(JpegDecoder))
+            provider.Utility.TestName = DecodeProgressiveJpegOutputName;
+            image.CompareToReferenceOutput(
+                GetImageComparer(provider),
+                provider,
+                appendPixelTypeToFileName: false);
+        }
+
+        [Theory]
+        [WithFile(TestImages.Jpeg.Progressive.Progress, PixelTypes.Rgba32)]
+        public void DecodeProgressiveJpeg_WithLimitedAllocatorBufferCapacity(TestImageProvider<Rgba32> provider)
+        {
+            static void RunTest(string providerDump, string nonContiguousBuffersStr)
             {
-                image.DebugSave(provider);
+                TestImageProvider<Rgba32> provider =
+                    BasicSerializer.Deserialize<TestImageProvider<Rgba32>>(providerDump);
+
+                provider.LimitAllocatorBufferCapacity().InBytesSqrt(200);
+
+                using Image<Rgba32> image = provider.GetImage(JpegDecoder);
+                image.DebugSave(provider, nonContiguousBuffersStr);
 
                 provider.Utility.TestName = DecodeProgressiveJpegOutputName;
                 image.CompareToReferenceOutput(
-                    this.GetImageComparer(provider),
+                    GetImageComparer(provider),
                     provider,
                     appendPixelTypeToFileName: false);
             }
+
+            string providerDump = BasicSerializer.Serialize(provider);
+
+            RemoteExecutor.Invoke(
+                RunTest,
+                providerDump,
+                "Disco").Dispose();
         }
     }
 }

@@ -1,7 +1,7 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
-#if !NETCOREAPP2_1
+#if !SUPPORTS_ENCODING_STRING
 using System;
 using System.Text;
 
@@ -20,14 +20,15 @@ namespace SixLabors.ImageSharp
         /// <returns>The string.</returns>
         public static string GetString(this Encoding encoding, ReadOnlySpan<byte> buffer)
         {
-#if NETSTANDARD1_1
-            return encoding.GetString(buffer.ToArray());
-#else
+            if (buffer.Length == 0)
+            {
+                return string.Empty;
+            }
+
             fixed (byte* bytes = buffer)
             {
                 return encoding.GetString(bytes, buffer.Length);
             }
-#endif
         }
     }
 }

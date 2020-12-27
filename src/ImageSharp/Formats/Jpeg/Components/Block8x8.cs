@@ -1,4 +1,4 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
@@ -10,7 +10,7 @@ using System.Text;
 namespace SixLabors.ImageSharp.Formats.Jpeg.Components
 {
     /// <summary>
-    /// Represents a Jpeg block with <see cref="short"/> coefficiens.
+    /// Represents a Jpeg block with <see cref="short"/> coefficients.
     /// </summary>
     // ReSharper disable once InconsistentNaming
     internal unsafe struct Block8x8 : IEquatable<Block8x8>
@@ -35,7 +35,7 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components
         public Block8x8(Span<short> coefficients)
         {
             ref byte selfRef = ref Unsafe.As<Block8x8, byte>(ref this);
-            ref byte sourceRef = ref MemoryMarshal.GetReference(MemoryMarshal.Cast<short, byte>(coefficients));
+            ref byte sourceRef = ref Unsafe.As<short, byte>(ref MemoryMarshal.GetReference(coefficients));
             Unsafe.CopyBlock(ref selfRef, ref sourceRef, Size * sizeof(short));
         }
 
@@ -64,7 +64,7 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components
         }
 
         /// <summary>
-        /// Gets or sets a value in a row+coulumn of the 8x8 block
+        /// Gets or sets a value in a row+column of the 8x8 block
         /// </summary>
         /// <param name="x">The x position index in the row</param>
         /// <param name="y">The column index</param>
@@ -194,7 +194,7 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components
         /// </summary>
         public short[] ToArray()
         {
-            short[] result = new short[Size];
+            var result = new short[Size];
             this.CopyTo(result);
             return result;
         }
@@ -283,7 +283,7 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components
         }
 
         /// <summary>
-        /// Calculate the total sum of absoulute differences of elements in 'a' and 'b'.
+        /// Calculate the total sum of absolute differences of elements in 'a' and 'b'.
         /// </summary>
         public static long TotalDifference(ref Block8x8 a, ref Block8x8 b)
         {

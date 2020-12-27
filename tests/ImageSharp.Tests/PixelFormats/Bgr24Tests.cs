@@ -1,4 +1,4 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System.Numerics;
@@ -7,10 +7,29 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.PixelFormats
 {
+    [Trait("Category", "PixelFormats")]
     public class Bgr24Tests
     {
+        [Fact]
+        public void AreEqual()
+        {
+            var color1 = new Bgr24(byte.MaxValue, 0, byte.MaxValue);
+            var color2 = new Bgr24(byte.MaxValue, 0, byte.MaxValue);
+
+            Assert.Equal(color1, color2);
+        }
+
+        [Fact]
+        public void AreNotEqual()
+        {
+            var color1 = new Bgr24(byte.MaxValue, 0, 0);
+            var color2 = new Bgr24(byte.MaxValue, 0, byte.MaxValue);
+
+            Assert.NotEqual(color1, color2);
+        }
+
         public static readonly TheoryData<byte, byte, byte> ColorData =
-            new TheoryData<byte, byte, byte>() { { 1, 2, 3 }, { 4, 5, 6 }, { 0, 255, 42 } };
+            new TheoryData<byte, byte, byte> { { 1, 2, 3 }, { 4, 5, 6 }, { 0, 255, 42 } };
 
         [Theory]
         [MemberData(nameof(ColorData))]
@@ -59,12 +78,11 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
             Assert.False(a.Equals((object)b));
         }
 
-
         [Fact]
-        public void PackFromRgba32()
+        public void FromRgba32()
         {
             var rgb = default(Bgr24);
-            rgb.PackFromRgba32(new Rgba32(1, 2, 3, 4));
+            rgb.FromRgba32(new Rgba32(1, 2, 3, 4));
 
             Assert.Equal(1, rgb.R);
             Assert.Equal(2, rgb.G);
@@ -78,10 +96,10 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
             a / 255f);
 
         [Fact]
-        public void PackFromVector4()
+        public void FromVector4()
         {
             var rgb = default(Bgr24);
-            rgb.PackFromVector4(Vec(1, 2, 3, 4));
+            rgb.FromVector4(Vec(1, 2, 3, 4));
 
             Assert.Equal(1, rgb.R);
             Assert.Equal(2, rgb.G);
@@ -97,79 +115,18 @@ namespace SixLabors.ImageSharp.Tests.PixelFormats
         }
 
         [Fact]
-        public void ToRgb24()
+        public void Bgr24_FromBgra5551()
         {
-            var rgb = new Bgr24(1, 2, 3);
-            var dest = default(Rgb24);
-
-            rgb.ToRgb24(ref dest);
-
-            Assert.Equal(new Rgb24(1, 2, 3), dest);
-        }
-
-        [Fact]
-        public void ToRgba32()
-        {
-            var rgb = new Bgr24(1, 2, 3);
-            var rgba = default(Rgba32);
-
-            rgb.ToRgba32(ref rgba);
-
-            Assert.Equal(new Rgba32(1, 2, 3, 255), rgba);
-        }
-
-        [Fact]
-        public void ToBgr24()
-        {
-            var rgb = new Bgr24(1, 2, 3);
+            // arrange
             var bgr = default(Bgr24);
 
-            rgb.ToBgr24(ref bgr);
-
-            Assert.Equal(new Bgr24(1, 2, 3), bgr);
-        }
-
-        [Fact]
-        public void ToBgra32()
-        {
-            var rgb = new Bgr24(1, 2, 3);
-            var bgra = default(Bgra32);
-
-            rgb.ToBgra32(ref bgra);
-
-            Assert.Equal(new Bgra32(1, 2, 3, 255), bgra);
-        }
-
-        [Fact]
-        public void Bgr24_PackFromRgb48_ToRgb48()
-        {
-            // arrange
-            var input = default(Bgr24);
-            var actual = default(Rgb48);
-            var expected = new Rgb48(65535, 0, 65535);
-
             // act
-            input.PackFromRgb48(expected);
-            input.ToRgb48(ref actual);
+            bgr.FromBgra5551(new Bgra5551(1.0f, 1.0f, 1.0f, 1.0f));
 
             // assert
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void Bgr24_PackFromRgba64_ToRgba64()
-        {
-            // arrange
-            var input = default(Bgr24);
-            var actual = default(Rgba64);
-            var expected = new Rgba64(65535, 0, 65535, 65535);
-
-            // act
-            input.PackFromRgba64(expected);
-            input.ToRgba64(ref actual);
-
-            // assert
-            Assert.Equal(expected, actual);
+            Assert.Equal(255, bgr.R);
+            Assert.Equal(255, bgr.G);
+            Assert.Equal(255, bgr.B);
         }
     }
 }

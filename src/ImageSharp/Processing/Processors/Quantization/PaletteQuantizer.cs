@@ -1,77 +1,66 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing.Processors.Dithering;
 
 namespace SixLabors.ImageSharp.Processing.Processors.Quantization
 {
     /// <summary>
-    /// Allows the quantization of images pixels using web safe colors defined in the CSS Color Module Level 4.
-    /// <see href="http://msdn.microsoft.com/en-us/library/aa479306.aspx"/> Override this class to provide your own palette.
-    /// <para>
-    /// By default the quantizer uses <see cref="KnownDiffusers.FloydSteinberg"/> dithering and the <see cref="NamedColors{TPixel}.WebSafePalette"/>
-    /// </para>
+    /// Allows the quantization of images pixels using color palettes.
     /// </summary>
     public class PaletteQuantizer : IQuantizer
     {
+        private static readonly QuantizerOptions DefaultOptions = new QuantizerOptions();
+        private readonly ReadOnlyMemory<Color> colorPalette;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PaletteQuantizer"/> class.
         /// </summary>
-        public PaletteQuantizer()
-             : this(true)
+        /// <param name="palette">The color palette.</param>
+        public PaletteQuantizer(ReadOnlyMemory<Color> palette)
+            : this(palette, DefaultOptions)
         {
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PaletteQuantizer"/> class.
         /// </summary>
-        /// <param name="dither">Whether to apply dithering to the output image</param>
-        public PaletteQuantizer(bool dither)
-            : this(GetDiffuser(dither))
+        /// <param name="palette">The color palette.</param>
+        /// <param name="options">The quantizer options defining quantization rules.</param>
+        public PaletteQuantizer(ReadOnlyMemory<Color> palette, QuantizerOptions options)
         {
-        }
+            Guard.MustBeGreaterThan(palette.Length, 0, nameof(palette));
+            Guard.NotNull(options, nameof(options));
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PaletteQuantizer"/> class.
-        /// </summary>
-        /// <param name="diffuser">The error diffusion algorithm, if any, to apply to the output image</param>
-        public PaletteQuantizer(IErrorDiffuser diffuser) => this.Diffuser = diffuser;
+            this.colorPalette = palette;
+            this.Options = options;
+        }
 
         /// <inheritdoc />
-        public IErrorDiffuser Diffuser { get; }
+        public QuantizerOptions Options { get; }
 
         /// <inheritdoc />
-        public virtual IFrameQuantizer<TPixel> CreateFrameQuantizer<TPixel>()
-            where TPixel : struct, IPixel<TPixel>
-            => this.CreateFrameQuantizer(() => NamedColors<TPixel>.WebSafePalette);
+        public IQuantizer<TPixel> CreatePixelSpecificQuantizer<TPixel>(Configuration configuration)
+            where TPixel : unmanaged, IPixel<TPixel>
+            => this.CreatePixelSpecificQuantizer<TPixel>(configuration, this.Options);
 
-        /// <inheritdoc/>
-        public IFrameQuantizer<TPixel> CreateFrameQuantizer<TPixel>(int maxColors)
-            where TPixel : struct, IPixel<TPixel>
+        /// <inheritdoc />
+        public IQuantizer<TPixel> CreatePixelSpecificQuantizer<TPixel>(Configuration configuration, QuantizerOptions options)
+            where TPixel : unmanaged, IPixel<TPixel>
         {
-            TPixel[] websafe = NamedColors<TPixel>.WebSafePalette;
-            int max = Math.Min(maxColors, websafe.Length);
+            Guard.NotNull(options, nameof(options));
 
-            if (max != websafe.Length)
-            {
-                return this.CreateFrameQuantizer(() => NamedColors<TPixel>.WebSafePalette.AsSpan(0, max).ToArray());
-            }
+            // The palette quantizer can reuse the same pixel map across multiple frames
+            // since the palette is unchanging. This allows a reduction of memory usage across
+            // multi frame gifs using a global palette.
+            int length = Math.Min(this.colorPalette.Length, options.MaxColors);
+            var palette = new TPixel[length];
 
-            return this.CreateFrameQuantizer(() => websafe);
+            Color.ToPixel(configuration, this.colorPalette.Span, palette.AsSpan());
+
+            var pixelMap = new EuclideanPixelMap<TPixel>(configuration, palette);
+            return new PaletteQuantizer<TPixel>(configuration, options, pixelMap);
         }
-
-        /// <summary>
-        /// Gets the palette to use to quantize the image.
-        /// </summary>
-        /// <typeparam name="TPixel">The pixel format.</typeparam>
-        /// <param name="paletteFunction">The method to return the palette.</param>
-        /// <returns>The <see cref="IFrameQuantizer{TPixel}"/></returns>
-        public IFrameQuantizer<TPixel> CreateFrameQuantizer<TPixel>(Func<TPixel[]> paletteFunction)
-            where TPixel : struct, IPixel<TPixel>
-            => new PaletteFrameQuantizer<TPixel>(this, paletteFunction.Invoke());
-
-        private static IErrorDiffuser GetDiffuser(bool dither) => dither ? KnownDiffusers.FloydSteinberg : null;
     }
 }

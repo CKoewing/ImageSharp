@@ -1,21 +1,21 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
-using SixLabors.ImageSharp.ColorSpaces;
-using SixLabors.ImageSharp.ColorSpaces.Conversion.Implementation.CieLchuvColorSapce;
-using SixLabors.ImageSharp.ColorSpaces.Conversion.Implementation.CieLuvColorSapce;
+using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace SixLabors.ImageSharp.ColorSpaces.Conversion
 {
     /// <content>
     /// Allows conversion to <see cref="CieLuv"/>.
     /// </content>
-    internal partial class ColorSpaceConverter
+    public partial class ColorSpaceConverter
     {
         private static readonly CieLchuvToCieLuvConverter CieLchuvToCieLuvConverter = new CieLchuvToCieLuvConverter();
 
         /// <summary>
-        /// Converts a <see cref="CieLab"/> into a <see cref="CieLuv"/>
+        /// Converts a <see cref="CieLab"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -26,7 +26,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="CieLch"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="CieLab"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<CieLab> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref CieLab sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref CieLab sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="CieLch"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -37,26 +58,63 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="CieLchuv"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="CieLch"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<CieLch> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref CieLch sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref CieLch sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="CieLchuv"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLab"/></returns>
         public CieLuv ToCieLuv(in CieLchuv color)
         {
-            // Conversion (perserving white point)
+            // Conversion (preserving white point)
             CieLuv unadapted = CieLchuvToCieLuvConverter.Convert(color);
-
-            if (!this.IsChromaticAdaptationPerformed)
-            {
-                return unadapted;
-            }
 
             // Adaptation
             return this.Adapt(unadapted);
         }
 
         /// <summary>
-        /// Converts a <see cref="CieXyy"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="CieLchuv"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<CieLchuv> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref CieLchuv sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref CieLchuv sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="CieXyy"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -67,24 +125,63 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="CieXyz"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="CieXyy"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<CieXyy> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref CieXyy sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref CieXyy sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="CieXyz"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
         public CieLuv ToCieLuv(in CieXyz color)
         {
             // Adaptation
-            CieXyz adapted = !this.WhitePoint.Equals(this.TargetLabWhitePoint) && this.IsChromaticAdaptationPerformed
-                ? this.ChromaticAdaptation.Transform(color, this.WhitePoint, this.TargetLabWhitePoint)
-                : color;
+            CieXyz adapted = this.Adapt(color, this.whitePoint, this.targetLuvWhitePoint);
 
             // Conversion
-            var converter = new CieXyzToCieLuvConverter(this.TargetLuvWhitePoint);
-            return converter.Convert(adapted);
+            return this.cieXyzToCieLuvConverter.Convert(adapted);
         }
 
         /// <summary>
-        /// Converts a <see cref="Cmyk"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="CieXyz"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<CieXyz> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref CieXyz sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref CieXyz sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Cmyk"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -92,6 +189,27 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         {
             var xyzColor = this.ToCieXyz(color);
             return this.ToCieLuv(xyzColor);
+        }
+
+        /// <summary>
+        /// Performs the bulk conversion from <see cref="Cmyk"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<Cmyk> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref Cmyk sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Cmyk sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
         }
 
         /// <summary>
@@ -106,7 +224,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="Hsv"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="Hsl"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<Hsl> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref Hsl sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Hsl sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Hsv"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -117,7 +256,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="HunterLab"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="Hsv"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<Hsv> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref Hsv sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Hsv sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="HunterLab"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -128,7 +288,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="Lms"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="HunterLab"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<HunterLab> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref HunterLab sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref HunterLab sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Lms"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -139,7 +320,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="LinearRgb"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="Lms"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<Lms> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref Lms sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Lms sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="LinearRgb"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -150,7 +352,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="Rgb"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="LinearRgb"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<LinearRgb> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref LinearRgb sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref LinearRgb sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Rgb"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -161,7 +384,28 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         }
 
         /// <summary>
-        /// Converts a <see cref="YCbCr"/> into a <see cref="CieLuv"/>
+        /// Performs the bulk conversion from <see cref="Rgb"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors</param>
+        /// <param name="destination">The span to the destination colors</param>
+        public void Convert(ReadOnlySpan<Rgb> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref Rgb sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref Rgb sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
+        }
+
+        /// <summary>
+        /// Converts a <see cref="YCbCr"/> into a <see cref="CieLuv"/>.
         /// </summary>
         /// <param name="color">The color to convert.</param>
         /// <returns>The <see cref="CieLuv"/></returns>
@@ -169,6 +413,27 @@ namespace SixLabors.ImageSharp.ColorSpaces.Conversion
         {
             var xyzColor = this.ToCieXyz(color);
             return this.ToCieLuv(xyzColor);
+        }
+
+        /// <summary>
+        /// Performs the bulk conversion from <see cref="YCbCr"/> into <see cref="CieLuv"/>.
+        /// </summary>
+        /// <param name="source">The span to the source colors.</param>
+        /// <param name="destination">The span to the destination colors.</param>
+        public void Convert(ReadOnlySpan<YCbCr> source, Span<CieLuv> destination)
+        {
+            Guard.DestinationShouldNotBeTooShort(source, destination, nameof(destination));
+            int count = source.Length;
+
+            ref YCbCr sourceRef = ref MemoryMarshal.GetReference(source);
+            ref CieLuv destRef = ref MemoryMarshal.GetReference(destination);
+
+            for (int i = 0; i < count; i++)
+            {
+                ref YCbCr sp = ref Unsafe.Add(ref sourceRef, i);
+                ref CieLuv dp = ref Unsafe.Add(ref destRef, i);
+                dp = this.ToCieLuv(sp);
+            }
         }
     }
 }

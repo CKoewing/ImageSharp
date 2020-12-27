@@ -1,11 +1,11 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using SixLabors.ImageSharp.Memory;
-using SixLabors.Memory;
-using SixLabors.Primitives;
 
 namespace SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder
 {
@@ -20,7 +20,7 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder
         private int currentComponentRowInBlocks;
 
         /// <summary>
-        /// The size of the area in <see cref="ColorBuffer"/> corrsponding to one 8x8 Jpeg block
+        /// The size of the area in <see cref="ColorBuffer"/> corresponding to one 8x8 Jpeg block
         /// </summary>
         private readonly Size blockAreaSize;
 
@@ -31,12 +31,13 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder
         {
             this.Component = component;
             this.ImagePostProcessor = imagePostProcessor;
-            this.ColorBuffer = memoryAllocator.Allocate2D<float>(
+            this.blockAreaSize = this.Component.SubSamplingDivisors * 8;
+            this.ColorBuffer = memoryAllocator.Allocate2DOveraligned<float>(
                 imagePostProcessor.PostProcessorBufferSize.Width,
-                imagePostProcessor.PostProcessorBufferSize.Height);
+                imagePostProcessor.PostProcessorBufferSize.Height,
+                this.blockAreaSize.Height);
 
             this.BlockRowsPerStep = JpegImagePostProcessor.BlockRowsPerStep / this.Component.SubSamplingDivisors.Height;
-            this.blockAreaSize = this.Component.SubSamplingDivisors * 8;
         }
 
         /// <summary>
@@ -76,6 +77,9 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder
         public void CopyBlocksToColorBuffer()
         {
             var blockPp = new JpegBlockPostProcessor(this.ImagePostProcessor.RawJpeg, this.Component);
+            float maximumValue = MathF.Pow(2, this.ImagePostProcessor.RawJpeg.Precision) - 1;
+
+            int destAreaStride = this.ColorBuffer.Width;
 
             for (int y = 0; y < this.BlockRowsPerStep; y++)
             {
@@ -88,20 +92,19 @@ namespace SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder
 
                 int yBuffer = y * this.blockAreaSize.Height;
 
-                for (int x = 0; x < this.SizeInBlocks.Width; x++)
+                Span<float> colorBufferRow = this.ColorBuffer.GetRowSpan(yBuffer);
+                Span<Block8x8> blockRow = this.Component.SpectralBlocks.GetRowSpan(yBlock);
+
+                // see: https://github.com/SixLabors/ImageSharp/issues/824
+                int widthInBlocks = Math.Min(this.Component.SpectralBlocks.Width, this.SizeInBlocks.Width);
+
+                for (int xBlock = 0; xBlock < widthInBlocks; xBlock++)
                 {
-                    int xBlock = x;
-                    int xBuffer = x * this.blockAreaSize.Width;
+                    ref Block8x8 block = ref blockRow[xBlock];
+                    int xBuffer = xBlock * this.blockAreaSize.Width;
+                    ref float destAreaOrigin = ref colorBufferRow[xBuffer];
 
-                    ref Block8x8 block = ref this.Component.GetBlockReference(xBlock, yBlock);
-
-                    BufferArea<float> destArea = this.ColorBuffer.GetArea(
-                        xBuffer,
-                        yBuffer,
-                        this.blockAreaSize.Width,
-                        this.blockAreaSize.Height);
-
-                    blockPp.ProcessBlockColorsInto(ref block, destArea);
+                    blockPp.ProcessBlockColorsInto(ref block, ref destAreaOrigin, destAreaStride, maximumValue);
                 }
             }
 

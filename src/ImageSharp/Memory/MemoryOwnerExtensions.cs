@@ -1,4 +1,4 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
@@ -13,16 +13,30 @@ namespace SixLabors.ImageSharp.Memory
     /// </summary>
     internal static class MemoryOwnerExtensions
     {
+        /// <summary>
+        /// Gets a <see cref="Span{T}"/> from an <see cref="IMemoryOwner{T}"/> instance.
+        /// </summary>
+        /// <param name="buffer">The buffer</param>
+        /// <returns>The <see cref="Span{T}"/></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> GetSpan<T>(this IMemoryOwner<T> buffer)
-            => buffer.Memory.Span;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Length<T>(this IMemoryOwner<T> buffer)
-            => buffer.GetSpan().Length;
+        {
+            return buffer.Memory.Span;
+        }
 
         /// <summary>
-        /// Gets a <see cref="Span{T}"/> to an offseted position inside the buffer.
+        /// Gets the length of an <see cref="IMemoryOwner{T}"/> internal buffer.
+        /// </summary>
+        /// <param name="buffer">The buffer</param>
+        /// <returns>The length of the buffer</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Length<T>(this IMemoryOwner<T> buffer)
+        {
+            return buffer.Memory.Length;
+        }
+
+        /// <summary>
+        /// Gets a <see cref="Span{T}"/> to an offsetted position inside the buffer.
         /// </summary>
         /// <param name="buffer">The buffer</param>
         /// <param name="start">The start</param>
@@ -56,8 +70,16 @@ namespace SixLabors.ImageSharp.Memory
             buffer.GetSpan().Clear();
         }
 
+        /// <summary>
+        /// Gets a reference to the first item in the internal buffer for an <see cref="IMemoryOwner{T}"/> instance.
+        /// </summary>
+        /// <param name="buffer">The buffer</param>
+        /// <returns>A reference to the first item within the memory wrapped by <paramref name="buffer"/></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T GetReference<T>(this IMemoryOwner<T> buffer)
-            where T : struct =>
-            ref MemoryMarshal.GetReference(buffer.GetSpan());
+            where T : struct
+        {
+            return ref MemoryMarshal.GetReference(buffer.GetSpan());
+        }
     }
 }

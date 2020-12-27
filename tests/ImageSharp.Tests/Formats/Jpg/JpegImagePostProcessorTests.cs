@@ -1,4 +1,4 @@
-// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -12,6 +12,7 @@ using Xunit.Abstractions;
 
 namespace SixLabors.ImageSharp.Tests.Formats.Jpg
 {
+    [Trait("Format", "Jpg")]
     public class JpegImagePostProcessorTests
     {
         public static string[] BaselineTestJpegs =
@@ -32,7 +33,7 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         private ITestOutputHelper Output { get; }
 
         private static void SaveBuffer<TPixel>(JpegComponentPostProcessor cp, TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             using (Image<Rgba32> image = cp.ColorBuffer.ToGrayscaleImage(1f / 255f))
             {
@@ -44,11 +45,11 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         [WithFile(TestImages.Jpeg.Baseline.Calliphora, PixelTypes.Rgba32)]
         [WithFile(TestImages.Jpeg.Baseline.Testorig420, PixelTypes.Rgba32)]
         public void DoProcessorStep<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             string imageFile = provider.SourceFileOrDescription;
             using (JpegDecoderCore decoder = JpegFixture.ParseJpegStream(imageFile))
-            using (var pp = new JpegImagePostProcessor(Configuration.Default.MemoryAllocator, decoder))
+            using (var pp = new JpegImagePostProcessor(Configuration.Default, decoder))
             using (var imageFrame = new ImageFrame<Rgba32>(Configuration.Default, decoder.ImageWidth, decoder.ImageHeight))
             {
                 pp.DoPostProcessorStep(imageFrame);
@@ -60,18 +61,18 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
                 SaveBuffer(cp[2], provider);
             }
         }
-        
+
         [Theory]
         [WithFileCollection(nameof(BaselineTestJpegs), PixelTypes.Rgba32)]
         public void PostProcess<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             string imageFile = provider.SourceFileOrDescription;
             using (JpegDecoderCore decoder = JpegFixture.ParseJpegStream(imageFile))
-            using (var pp = new JpegImagePostProcessor(Configuration.Default.MemoryAllocator, decoder))
+            using (var pp = new JpegImagePostProcessor(Configuration.Default, decoder))
             using (var image = new Image<Rgba32>(decoder.ImageWidth, decoder.ImageHeight))
             {
-                pp.PostProcess(image.Frames.RootFrame);
+                pp.PostProcess(image.Frames.RootFrame, default);
 
                 image.DebugSave(provider);
 

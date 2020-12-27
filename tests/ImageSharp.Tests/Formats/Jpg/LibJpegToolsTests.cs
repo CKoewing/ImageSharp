@@ -1,3 +1,6 @@
+// Copyright (c) Six Labors.
+// Licensed under the Apache License, Version 2.0.
+
 using System.IO;
 
 using SixLabors.ImageSharp.PixelFormats;
@@ -7,12 +10,16 @@ using Xunit;
 
 namespace SixLabors.ImageSharp.Tests.Formats.Jpg
 {
+    [Trait("Format", "Jpg")]
     public class LibJpegToolsTests
     {
         [Fact]
         public void RunDumpJpegCoeffsTool()
         {
-            if (!TestEnvironment.IsWindows) return;
+            if (!TestEnvironment.IsWindows)
+            {
+                return;
+            }
 
             string inputFile = TestFile.GetInputFileFullPath(TestImages.Jpeg.Progressive.Progress);
             string outputDir = TestEnvironment.CreateOutputDirectory(nameof(SpectralJpegTests));
@@ -27,7 +34,7 @@ namespace SixLabors.ImageSharp.Tests.Formats.Jpg
         [WithFile(TestImages.Jpeg.Baseline.Calliphora, PixelTypes.Rgba32)]
         [WithFile(TestImages.Jpeg.Progressive.Progress, PixelTypes.Rgba32)]
         public void ExtractSpectralData<TPixel>(TestImageProvider<TPixel> provider)
-            where TPixel : struct, IPixel<TPixel>
+            where TPixel : unmanaged, IPixel<TPixel>
         {
             if (!TestEnvironment.IsWindows)
             {

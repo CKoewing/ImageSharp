@@ -1,19 +1,21 @@
-﻿// Copyright (c) Six Labors and contributors.
+// Copyright (c) Six Labors.
 // Licensed under the Apache License, Version 2.0.
 
 using System;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using SixLabors.ImageSharp.Common.Tuples;
-
+#if SUPPORTS_RUNTIME_INTRINSICS
+using System.Runtime.Intrinsics.X86;
+#endif
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Tests.TestUtilities;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace SixLabors.ImageSharp.Tests.Common
 {
-    public class SimdUtilsTests
+    public partial class SimdUtilsTests
     {
         private ITestOutputHelper Output { get; }
 
@@ -44,7 +46,7 @@ namespace SixLabors.ImageSharp.Tests.Common
 
         private static Vector<float> CreateExactTestVector1()
         {
-            float[] data = new float[Vector<float>.Count];
+            var data = new float[Vector<float>.Count];
 
             data[0] = 0.1f;
             data[1] = 0.4f;
@@ -55,18 +57,19 @@ namespace SixLabors.ImageSharp.Tests.Common
             {
                 data[i] = data[i - 4] + 100f;
             }
+
             return new Vector<float>(data);
         }
 
         private static Vector<float> CreateRandomTestVector(int seed, float min, float max)
         {
-            float[] data = new float[Vector<float>.Count];
+            var data = new float[Vector<float>.Count];
 
-            var rnd = new Random();
+            var rnd = new Random(seed);
 
             for (int i = 0; i < Vector<float>.Count; i++)
             {
-                float v = (float)rnd.NextDouble() * (max - min) + min;
+                float v = ((float)rnd.NextDouble() * (max - min)) + min;
                 data[i] = v;
             }
 
@@ -104,7 +107,7 @@ namespace SixLabors.ImageSharp.Tests.Common
 
         private bool SkipOnNonAvx2([CallerMemberName] string testCaseName = null)
         {
-            if (!SimdUtils.IsAvx2CompatibleArchitecture)
+            if (!SimdUtils.HasVector8)
             {
                 this.Output.WriteLine("Skipping AVX2 specific test case: " + testCaseName);
                 return true;
@@ -118,7 +121,7 @@ namespace SixLabors.ImageSharp.Tests.Common
         [InlineData(1, 8)]
         [InlineData(2, 16)]
         [InlineData(3, 128)]
-        public void BulkConvertNormalizedFloatToByte_WithRoundedData(int seed, int count)
+        public void BasicIntrinsics256_BulkConvertNormalizedFloatToByte_WithRoundedData(int seed, int count)
         {
             if (this.SkipOnNonAvx2())
             {
@@ -128,11 +131,11 @@ namespace SixLabors.ImageSharp.Tests.Common
             float[] orig = new Random(seed).GenerateRandomRoundedFloatArray(count, 0, 256);
             float[] normalized = orig.Select(f => f / 255f).ToArray();
 
-            byte[] dest = new byte[count];
+            var dest = new byte[count];
 
-            SimdUtils.BulkConvertNormalizedFloatToByte(normalized, dest);
+            SimdUtils.BasicIntrinsics256.BulkConvertNormalizedFloatToByte(normalized, dest);
 
-            byte[] expected = orig.Select(f => (byte)(f)).ToArray();
+            byte[] expected = orig.Select(f => (byte)f).ToArray();
 
             Assert.Equal(expected, dest);
         }
@@ -142,7 +145,7 @@ namespace SixLabors.ImageSharp.Tests.Common
         [InlineData(1, 8)]
         [InlineData(2, 16)]
         [InlineData(3, 128)]
-        public void BulkConvertNormalizedFloatToByte_WithNonRoundedData(int seed, int count)
+        public void BasicIntrinsics256_BulkConvertNormalizedFloatToByte_WithNonRoundedData(int seed, int count)
         {
             if (this.SkipOnNonAvx2())
             {
@@ -151,108 +154,318 @@ namespace SixLabors.ImageSharp.Tests.Common
 
             float[] source = new Random(seed).GenerateRandomFloatArray(count, 0, 1f);
 
-            byte[] dest = new byte[count];
+            var dest = new byte[count];
 
-            SimdUtils.BulkConvertNormalizedFloatToByte(source, dest);
+            SimdUtils.BasicIntrinsics256.BulkConvertNormalizedFloatToByte(source, dest);
 
             byte[] expected = source.Select(f => (byte)Math.Round(f * 255f)).ToArray();
 
             Assert.Equal(expected, dest);
         }
 
-        private static float Clamp255(float x) => Math.Min(255f, Math.Max(0f, x));
+        public static readonly TheoryData<int> ArraySizesDivisibleBy8 = new TheoryData<int> { 0, 8, 16, 1024 };
+        public static readonly TheoryData<int> ArraySizesDivisibleBy4 = new TheoryData<int> { 0, 4, 8, 28, 1020 };
+        public static readonly TheoryData<int> ArraySizesDivisibleBy3 = new TheoryData<int> { 0, 3, 9, 36, 957 };
+        public static readonly TheoryData<int> ArraySizesDivisibleBy32 = new TheoryData<int> { 0, 32, 512 };
+
+        public static readonly TheoryData<int> ArbitraryArraySizes =
+            new TheoryData<int>
+                {
+                    0, 1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 63, 64, 255, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520,
+                };
 
         [Theory]
-        [InlineData(1, 0)]
-        [InlineData(1, 8)]
-        [InlineData(2, 16)]
-        [InlineData(3, 128)]
-        public void BulkConvertNormalizedFloatToByteClampOverflows(int seed, int count)
+        [MemberData(nameof(ArraySizesDivisibleBy4))]
+        public void FallbackIntrinsics128_BulkConvertByteToNormalizedFloat(int count)
+        {
+            TestImpl_BulkConvertByteToNormalizedFloat(
+                count,
+                (s, d) => SimdUtils.FallbackIntrinsics128.ByteToNormalizedFloat(s.Span, d.Span));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy8))]
+        public void BasicIntrinsics256_BulkConvertByteToNormalizedFloat(int count)
         {
             if (this.SkipOnNonAvx2())
             {
                 return;
             }
 
-            float[] orig = new Random(seed).GenerateRandomRoundedFloatArray(count, -50, 444);
-            float[] normalized = orig.Select(f => f / 255f).ToArray();
-
-            byte[] dest = new byte[count];
-
-            SimdUtils.BulkConvertNormalizedFloatToByteClampOverflows(normalized, dest);
-
-            byte[] expected = orig.Select(f => (byte)Clamp255(f)).ToArray();
-
-            Assert.Equal(expected, dest);
+            TestImpl_BulkConvertByteToNormalizedFloat(
+                count,
+                (s, d) => SimdUtils.BasicIntrinsics256.ByteToNormalizedFloat(s.Span, d.Span));
         }
 
         [Theory]
-        [InlineData(0)]
-        [InlineData(7)]
-        [InlineData(42)]
-        [InlineData(255)]
-        [InlineData(256)]
-        [InlineData(257)]
-        private void MagicConvertToByte(float value)
+        [MemberData(nameof(ArraySizesDivisibleBy32))]
+        public void ExtendedIntrinsics_BulkConvertByteToNormalizedFloat(int count)
         {
-            byte actual = MagicConvert(value / 256f);
-            byte expected = (byte)value;
+            TestImpl_BulkConvertByteToNormalizedFloat(
+                count,
+                (s, d) => SimdUtils.ExtendedIntrinsics.ByteToNormalizedFloat(s.Span, d.Span));
+        }
+
+#if SUPPORTS_RUNTIME_INTRINSICS
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy32))]
+        public void HwIntrinsics_BulkConvertByteToNormalizedFloat(int count)
+        {
+            static void RunTest(string serialized)
+            {
+                TestImpl_BulkConvertByteToNormalizedFloat(
+                    FeatureTestRunner.Deserialize<int>(serialized),
+                    (s, d) => SimdUtils.HwIntrinsics.ByteToNormalizedFloat(s.Span, d.Span));
+            }
+
+            FeatureTestRunner.RunWithHwIntrinsicsFeature(
+                RunTest,
+                count,
+                HwIntrinsics.AllowAll | HwIntrinsics.DisableAVX2 | HwIntrinsics.DisableSSE41);
+        }
+#endif
+
+        [Theory]
+        [MemberData(nameof(ArbitraryArraySizes))]
+        public void BulkConvertByteToNormalizedFloat(int count)
+        {
+            TestImpl_BulkConvertByteToNormalizedFloat(
+                count,
+                (s, d) => SimdUtils.ByteToNormalizedFloat(s.Span, d.Span));
+        }
+
+        private static void TestImpl_BulkConvertByteToNormalizedFloat(
+            int count,
+            Action<Memory<byte>, Memory<float>> convert)
+        {
+            byte[] source = new Random(count).GenerateRandomByteArray(count);
+            var result = new float[count];
+            float[] expected = source.Select(b => (float)b / 255f).ToArray();
+
+            convert(source, result);
+
+            Assert.Equal(expected, result, new ApproximateFloatComparer(1e-5f));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy4))]
+        public void FallbackIntrinsics128_BulkConvertNormalizedFloatToByteClampOverflows(int count)
+        {
+            TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(
+                count,
+                (s, d) => SimdUtils.FallbackIntrinsics128.NormalizedFloatToByteSaturate(s.Span, d.Span));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy8))]
+        public void BasicIntrinsics256_BulkConvertNormalizedFloatToByteClampOverflows(int count)
+        {
+            if (this.SkipOnNonAvx2())
+            {
+                return;
+            }
+
+            TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(count, (s, d) => SimdUtils.BasicIntrinsics256.NormalizedFloatToByteSaturate(s.Span, d.Span));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy32))]
+        public void ExtendedIntrinsics_BulkConvertNormalizedFloatToByteClampOverflows(int count)
+        {
+            TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(
+                count,
+                (s, d) => SimdUtils.ExtendedIntrinsics.NormalizedFloatToByteSaturate(s.Span, d.Span));
+        }
+
+        [Theory]
+        [InlineData(1234)]
+        public void ExtendedIntrinsics_ConvertToSingle(short scale)
+        {
+            int n = Vector<float>.Count;
+            short[] sData = new Random(scale).GenerateRandomInt16Array(2 * n, (short)-scale, scale);
+            float[] fData = sData.Select(u => (float)u).ToArray();
+
+            var source = new Vector<short>(sData);
+
+            var expected1 = new Vector<float>(fData, 0);
+            var expected2 = new Vector<float>(fData, n);
+
+            // Act:
+            SimdUtils.ExtendedIntrinsics.ConvertToSingle(source, out Vector<float> actual1, out Vector<float> actual2);
+
+            // Assert:
+            Assert.Equal(expected1, actual1);
+            Assert.Equal(expected2, actual2);
+        }
+
+#if SUPPORTS_RUNTIME_INTRINSICS
+
+        [Theory]
+        [MemberData(nameof(ArraySizesDivisibleBy32))]
+        public void HwIntrinsics_BulkConvertNormalizedFloatToByteClampOverflows(int count)
+        {
+            static void RunTest(string serialized)
+            {
+                TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(
+                    FeatureTestRunner.Deserialize<int>(serialized),
+                    (s, d) => SimdUtils.HwIntrinsics.NormalizedFloatToByteSaturate(s.Span, d.Span));
+            }
+
+            FeatureTestRunner.RunWithHwIntrinsicsFeature(
+                RunTest,
+                count,
+                HwIntrinsics.AllowAll | HwIntrinsics.DisableAVX2);
+        }
+
+#endif
+
+        [Theory]
+        [MemberData(nameof(ArbitraryArraySizes))]
+        public void BulkConvertNormalizedFloatToByteClampOverflows(int count)
+        {
+            TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(count, (s, d) => SimdUtils.NormalizedFloatToByteSaturate(s.Span, d.Span));
+
+            // For small values, let's stress test the implementation a bit:
+            if (count > 0 && count < 10)
+            {
+                for (int i = 0; i < 20; i++)
+                {
+                    TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(
+                        count,
+                        (s, d) => SimdUtils.NormalizedFloatToByteSaturate(s.Span, d.Span),
+                        i + 42);
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(ArbitraryArraySizes))]
+        public void PackFromRgbPlanes_Rgb24(int count)
+        {
+            TestPackFromRgbPlanes<Rgb24>(
+                count,
+                (r, g, b, actual) =>
+                    SimdUtils.PackFromRgbPlanes(Configuration.Default, r, g, b, actual));
+        }
+
+        [Theory]
+        [MemberData(nameof(ArbitraryArraySizes))]
+        public void PackFromRgbPlanes_Rgba32(int count)
+        {
+            TestPackFromRgbPlanes<Rgba32>(
+                count,
+                (r, g, b, actual) =>
+                    SimdUtils.PackFromRgbPlanes(Configuration.Default, r, g, b, actual));
+        }
+
+#if SUPPORTS_RUNTIME_INTRINSICS
+        [Fact]
+        public void PackFromRgbPlanesAvx2Reduce_Rgb24()
+        {
+            if (!Avx2.IsSupported)
+            {
+                return;
+            }
+
+            byte[] r = Enumerable.Range(0, 32).Select(x => (byte)x).ToArray();
+            byte[] g = Enumerable.Range(100, 32).Select(x => (byte)x).ToArray();
+            byte[] b = Enumerable.Range(200, 32).Select(x => (byte)x).ToArray();
+            const int padding = 4;
+            Rgb24[] d = new Rgb24[32 + padding];
+
+            ReadOnlySpan<byte> rr = r.AsSpan();
+            ReadOnlySpan<byte> gg = g.AsSpan();
+            ReadOnlySpan<byte> bb = b.AsSpan();
+            Span<Rgb24> dd = d.AsSpan();
+
+            SimdUtils.HwIntrinsics.PackFromRgbPlanesAvx2Reduce(ref rr, ref gg, ref bb, ref dd);
+
+            for (int i = 0; i < 32; i++)
+            {
+                Assert.Equal(i, d[i].R);
+                Assert.Equal(i + 100, d[i].G);
+                Assert.Equal(i + 200, d[i].B);
+            }
+
+            Assert.Equal(0, rr.Length);
+            Assert.Equal(0, gg.Length);
+            Assert.Equal(0, bb.Length);
+            Assert.Equal(padding, dd.Length);
+        }
+
+        [Fact]
+        public void PackFromRgbPlanesAvx2Reduce_Rgba32()
+        {
+            if (!Avx2.IsSupported)
+            {
+                return;
+            }
+
+            byte[] r = Enumerable.Range(0, 32).Select(x => (byte)x).ToArray();
+            byte[] g = Enumerable.Range(100, 32).Select(x => (byte)x).ToArray();
+            byte[] b = Enumerable.Range(200, 32).Select(x => (byte)x).ToArray();
+
+            Rgba32[] d = new Rgba32[32];
+
+            ReadOnlySpan<byte> rr = r.AsSpan();
+            ReadOnlySpan<byte> gg = g.AsSpan();
+            ReadOnlySpan<byte> bb = b.AsSpan();
+            Span<Rgba32> dd = d.AsSpan();
+
+            SimdUtils.HwIntrinsics.PackFromRgbPlanesAvx2Reduce(ref rr, ref gg, ref bb, ref dd);
+
+            for (int i = 0; i < 32; i++)
+            {
+                Assert.Equal(i, d[i].R);
+                Assert.Equal(i + 100, d[i].G);
+                Assert.Equal(i + 200, d[i].B);
+                Assert.Equal(255, d[i].A);
+            }
+
+            Assert.Equal(0, rr.Length);
+            Assert.Equal(0, gg.Length);
+            Assert.Equal(0, bb.Length);
+            Assert.Equal(0, dd.Length);
+        }
+#endif
+
+        internal static void TestPackFromRgbPlanes<TPixel>(int count, Action<byte[], byte[], byte[], TPixel[]> packMethod)
+            where TPixel : unmanaged, IPixel<TPixel>
+        {
+            Random rnd = new Random(42);
+            byte[] r = rnd.GenerateRandomByteArray(count);
+            byte[] g = rnd.GenerateRandomByteArray(count);
+            byte[] b = rnd.GenerateRandomByteArray(count);
+
+            TPixel[] expected = new TPixel[count];
+            for (int i = 0; i < count; i++)
+            {
+                expected[i].FromRgb24(new Rgb24(r[i], g[i], b[i]));
+            }
+
+            TPixel[] actual = new TPixel[count + 3]; // padding for Rgb24 AVX2
+            packMethod(r, g, b, actual);
+
+            Assert.True(expected.AsSpan().SequenceEqual(actual.AsSpan().Slice(0, count)));
+        }
+
+        private static void TestImpl_BulkConvertNormalizedFloatToByteClampOverflows(
+            int count,
+            Action<Memory<float>,
+            Memory<byte>> convert,
+            int seed = -1)
+        {
+            seed = seed > 0 ? seed : count;
+            float[] source = new Random(seed).GenerateRandomFloatArray(count, -0.2f, 1.2f);
+            byte[] expected = source.Select(NormalizedFloatToByte).ToArray();
+            var actual = new byte[count];
+
+            convert(source, actual);
 
             Assert.Equal(expected, actual);
         }
 
-        [Fact]
-        private void BulkConvertNormalizedFloatToByte_Step()
-        {
-            if (this.SkipOnNonAvx2())
-            {
-                return;
-            }
-
-            float[] source = { 0, 7, 42, 255, 0.5f, 1.1f, 2.6f, 16f };
-
-            var expected = source.Select(f => (byte)Math.Round(f)).ToArray();
-
-            source = source.Select(f => f / 255f).ToArray();
-
-            Span<byte> dest = stackalloc byte[8];
-
-            this.MagicConvert(source, dest);
-
-            Assert.True(dest.SequenceEqual(expected));
-        }
-
-        private static byte MagicConvert(float x)
-        {
-            float f = 32768.0f + x;
-            uint i = Unsafe.As<float, uint>(ref f);
-            return (byte)i;
-        }
-
-        private void MagicConvert(Span<float> source, Span<byte> dest)
-        {
-            var magick = new Vector<float>(32768.0f);
-
-            Vector<float> scale = new Vector<float>(255f) / new Vector<float>(256f);
-
-            Vector<float> x = MemoryMarshal.Cast<float, Vector<float>>(source)[0];
-
-            x = (x * scale) + magick;
-
-            Tuple8.OfUInt32 ii = default;
-
-            ref Vector<float> iiRef = ref Unsafe.As<Tuple8.OfUInt32, Vector<float>>(ref ii);
-
-            iiRef = x;
-
-            //Tuple8.OfUInt32 ii = Unsafe.As<Vector<float>, Tuple8.OfUInt32>(ref x);
-
-            ref Tuple8.OfByte d = ref MemoryMarshal.Cast<byte, Tuple8.OfByte>(dest)[0];
-            d.LoadFrom(ref ii);
-
-            this.Output.WriteLine(ii.ToString());
-            this.Output.WriteLine(d.ToString());
-        }
+        private static byte NormalizedFloatToByte(float f) => (byte)Math.Min(255f, Math.Max(0f, (f * 255f) + 0.5f));
 
         private static void AssertEvenRoundIsCorrect(Vector<float> r, Vector<float> v)
         {
